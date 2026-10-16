@@ -1,5 +1,10 @@
 # Development hardening decisions (2026-10-16)
 
+- One-command office preparation uses the standard-library `venv` module and existing
+  `requirements-core.lock`. Oracle and development dependencies stay separately selectable.
+  `.env` creation uses exclusive file creation so existing settings cannot be overwritten.
+  The application continues to require explicit `--env-file .env`; no implicit dotenv loading.
+
 - Configuration precedence: process environment > explicitly selected dotenv > JSON > defaults.
   No implicit dotenv search. Oracle/discovery secrets continue to use approved environment injection.
 - Use one model factory and encoder identity across administrative and application construction.

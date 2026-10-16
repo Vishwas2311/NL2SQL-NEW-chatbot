@@ -1,6 +1,6 @@
 # EWS V4.3 metadata-driven NL-to-SQL backend
 
-Development hardening is locally verified: **323 tests, 89% coverage and all quality gates passed**.
+Latest local verification: **328 tests, 89% coverage and all quality gates passed**, including the one-command setup follow-up.
 See the [complete report](reports/DEVELOPMENT_HARDENING_REPORT.md) and
 [configuration/handoff runbook](DEVELOPMENT_HARDENING_RUNBOOK.md). Enterprise release gates remain open.
 
@@ -11,18 +11,26 @@ and [tested operations](ORACLE_BOOTSTRAP_RUNBOOK.md). Existing synthetic startup
 Working synthetic-first FastAPI backend. The supplied HTML/CSS/JS remains untouched and is not
 served or integrated. This implementation is a local development baseline, not an enterprise release.
 
-Python baseline: **3.13.16**. Run these commands from this directory in PowerShell:
+Python baseline: **3.13.16**. Create the environment and `.env` with one command:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements.lock
-.\.venv\Scripts\python -m pip install --no-deps -e .
-.\.venv\Scripts\python -m nl2sql init-demo
-.\.venv\Scripts\python -m nl2sql serve
+python setup_env.py
 ```
 
-The original v1 demo remains initialized and unchanged. Skip `init-demo` for that directory; it refuses to
-overwrite an existing database. Initialization creates fictional data, an approved synthetic catalog,
+This creates `.venv`, installs the pinned core dependencies and the project, and copies
+the clearly labelled `.env.example` to `.env`. Existing `.env` settings are preserved.
+The Oracle driver and development tools remain optional; install `requirements-oracle.lock`
+or `requirements.lock` into `.venv` when needed. `.env` stays excluded from Git.
+
+Then initialize a fresh synthetic demo and start it from this directory in PowerShell:
+
+```powershell
+.\.venv\Scripts\python -m nl2sql init-demo
+.\.venv\Scripts\python -m nl2sql serve --env-file .env
+```
+
+Run `init-demo` once for a fresh checkout. If a demo is already initialized, skip that step or select
+a new `--settings` path; initialization refuses to overwrite an existing database. It creates fictional data, an approved synthetic catalog,
 and random credentials in ignored `.local/` files. No shared default bearer token exists. Protect
 that directory with your OS account permissions. The service binds to `127.0.0.1:8000`.
 

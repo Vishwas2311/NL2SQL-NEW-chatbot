@@ -1,6 +1,10 @@
 # Development hardening — external release gates remain open
 
-Local quality verification is complete: 323 passed, 89% coverage and all six quality gates.
+One-command environment setup has been verified in a fresh local environment. Office installation
+still requires approved Python 3.13 and access to the pinned packages through an approved package
+source. Bootstrap configuration does not qualify company Oracle, identity, inference or embeddings.
+
+Latest local quality verification is complete: 328 passed, 89% coverage and all six quality gates.
 See reports/DEVELOPMENT_HARDENING_REPORT.md for the full implementation and evidence.
 
 Still requires approved qualification: company Oracle/DBA controls, actual embedding runtime,

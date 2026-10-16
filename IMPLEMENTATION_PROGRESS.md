@@ -1,5 +1,13 @@
 # V4.3 development hardening — verified local build (2026-10-16)
 
+## One-command environment setup follow-up
+
+`python setup_env.py` prepares `.venv`, installs the pinned core dependencies and project,
+and creates `.env` from the sectioned `.env.example` while preserving existing settings.
+Four focused setup regressions passed. A real isolated installation in a path with spaces
+passed dependency validation, backend import and explicit `.env` loading. The full follow-up
+`scripts/check.py` run passed: 328 tests, 89% coverage and every quality gate.
+
 The full 323-case quality run was followed by one additional focused provider-comparison regression
 (passed); application code remained unchanged. Both scripted providers passed all 46 scenarios.
 

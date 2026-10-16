@@ -1,5 +1,16 @@
 # V4.3 development hardening — verified local build (2026-10-16)
 
+## Latest environment setup follow-up
+
+`scripts/check.py` exited 0: **328 tests passed in 300.30s, 89% coverage**, Ruff lint and
+format, Pylint 10.00/10, strict Pyright and all three pre-commit checks passed. The single
+upstream deprecation warning remains. Local raw evidence: `.local/setup-env-quality.txt`.
+Four new setup cases cover paths with spaces/different working directories, repeat setup,
+preservation of existing `.env` settings, installation failure and unsupported Python.
+A real fresh installation also passed `pip check`, backend import and explicit `.env` loading.
+Windows newline normalization is accepted when comparing template content.
+The results below describe the earlier hardening baseline.
+
 Additional focused verification after the full run: provider comparison regression 1/1 passed in
 24.36s; two independent scripted providers each passed 46/46 scenarios. No application code changed.
 
