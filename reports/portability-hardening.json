@@ -1,0 +1,10 @@
+{
+  "python": "3.13.16",
+  "core_clean_install": true,
+  "oracledb_installed": false,
+  "model": "disabled",
+  "synthetic_query_correct": true,
+  "optional_oracle_missing_error": "OPTIONAL_DEPENDENCY",
+  "missing_dependency_creates_profile": false,
+  "actual_core_http_smoke": "reports/api-smoke-hardening.json"
+}

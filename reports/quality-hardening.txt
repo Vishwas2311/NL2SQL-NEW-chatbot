@@ -1,0 +1,87 @@
+Captured scripts/check.py output; workspace path redacted. Original: .local/hardening-quality-verified.txt
+
+Running: ruff check .
+All checks passed!
+Running: ruff format --check .
+146 files already formatted
+Running: pylint backend/nl2sql
+
+--------------------------------------------------------------------
+Your code has been rated at 10.00/10 (previous run: 10.00/10, +0.00)
+
+Running: pyright
+0 errors, 0 warnings, 0 informations
+Running: pytest -q
+........................................................................ [ 22%]
+........................................................................ [ 44%]
+........................................................................ [ 66%]
+........................................................................ [ 89%]
+...................................                                      [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  <workspace>\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.13.16-final-0 _______________
+
+Name                                     Stmts   Miss Branch BrPart  Cover   Missing
+------------------------------------------------------------------------------------
+backend\nl2sql\__init__.py                   0      0      0      0   100%
+backend\nl2sql\__main__.py                  58     21     14      3    61%   41-55, 60-65, 68-69, 73-75, 78-93, 97
+backend\nl2sql\api.py                      205      9     14      6    93%   99, 122, 129, 143, 220, 239, 287-288, 339
+backend\nl2sql\auth.py                      41      1     16      2    95%   36, 53->59
+backend\nl2sql\bundle_build.py              69      6     18      6    86%   73, 80, 99, 110, 115, 119
+backend\nl2sql\catalog.py                  249     38    156     36    81%   43->42, 72-73, 75, 77, 99, 115-116, 133, 141, 143, 148, 169, 171, 174, 176, 177->180, 189, 239, 274, 290, 298, 301, 305, 311, 313, 315, 324, 332, 338, 343, 353, 363, 376, 380, 384, 386, 389, 394, 396
+backend\nl2sql\certification.py             65     10     34      4    78%   50, 95, 133, 135-141
+backend\nl2sql\compatibility.py              5      0      2      0   100%
+backend\nl2sql\compiler.py                 140      4     60      7    94%   84, 124, 169, 222->234, 234->238, 257->259, 303
+backend\nl2sql\composite.py                 60      2     20      3    94%   114-115, 122->129, 142->144
+backend\nl2sql\config.py                    93      6     14      6    89%   104, 106, 108, 110, 118, 138
+backend\nl2sql\database.py                 110      8     30      6    90%   76, 81, 120, 126, 130, 146, 167-168
+backend\nl2sql\discovery.py                 64      3     16      4    91%   43, 82, 111->117, 132
+backend\nl2sql\domain.py                   241      0      4      0   100%
+backend\nl2sql\drift.py                    166      9    108     12    92%   76, 123, 135, 146, 153, 234, 273->275, 275->277, 300->299, 302-303, 326->328, 368
+backend\nl2sql\embedding_cache.py           63      2     22      3    94%   60, 98, 114->exit
+backend\nl2sql\embeddings.py               140      2     50      2    98%   71, 164
+backend\nl2sql\entity_lookup.py             36      3     18      3    89%   17, 42, 44
+backend\nl2sql\evaluation.py               116      3     14      0    96%   581-583
+backend\nl2sql\governance.py                67      7     20      7    84%   47, 49, 56, 70, 84, 88, 92
+backend\nl2sql\load_evaluation.py           61      4     12      4    89%   45-46, 67, 74->76, 85->87, 114
+backend\nl2sql\managed_resources.py         70      6     12      4    88%   47-48, 66, 70, 94, 102
+backend\nl2sql\metadata_cli.py             231     21     86     14    89%   150, 163->167, 165->167, 176, 185-194, 208, 309, 320, 344-348, 350-352, 368, 385, 392, 397
+backend\nl2sql\metadata_config.py           43      5     14      4    84%   34-39, 44, 51, 67
+backend\nl2sql\metadata_store.py           184     15     34      7    88%   125, 148, 155, 218, 245, 267-277, 313, 342
+backend\nl2sql\metadata_workflow.py        143     13     50     13    87%   70, 191, 238, 245, 258, 262, 277, 283, 288, 296, 307, 325, 329
+backend\nl2sql\middleware.py                30      2     10      3    88%   23, 33->20, 42
+backend\nl2sql\model.py                    194      7     58      6    95%   55, 79, 251, 259, 292, 339, 366
+backend\nl2sql\oracle.py                   195     36     50      6    83%   129, 169, 171, 179-180, 189-190, 233, 261, 302-303, 314-317, 322, 332-359
+backend\nl2sql\oracle_discovery.py         161     20     46      8    84%   101, 130-151, 166, 201, 207, 217-221, 254, 331
+backend\nl2sql\oracle_factory.py            49      1      4      1    96%   101
+backend\nl2sql\physical.py                  92      7     18      7    87%   82, 89, 95, 115, 117, 119, 121
+backend\nl2sql\physical_sql.py              35      2     22      2    93%   35, 60
+backend\nl2sql\planning.py                 176     24    116     22    84%   33, 40, 55, 64, 72, 91-96, 98, 108, 121, 143->140, 180, 205, 211, 229->231, 233, 251, 321, 330, 334, 347, 352, 355->359
+backend\nl2sql\ports.py                     28      0      0      0   100%
+backend\nl2sql\ranking.py                   20      0      2      0   100%
+backend\nl2sql\refresh.py                   47      8     14      3    75%   32, 45, 67, 71-79
+backend\nl2sql\retrieval.py                177     11     72     12    91%   109, 136, 150, 162->161, 202, 225, 255, 273, 275, 298, 302, 333
+backend\nl2sql\retrieval_evaluation.py      57      4     14      3    90%   19->17, 33-34, 56, 107
+backend\nl2sql\retrieval_experiment.py       9      0      2      0   100%
+backend\nl2sql\runtime_bundle.py           235     25     68     16    86%   84, 90, 94, 96-98, 101, 117, 157->159, 171-173, 176-181, 226, 234, 241, 253-254, 278, 299, 333, 340, 351->349
+backend\nl2sql\search_metadata.py           72      0     28      0   100%
+backend\nl2sql\security.py                 386     42    196     40    86%   92, 99, 118, 145, 159, 186, 191, 194-195, 221, 234, 239, 245, 250, 253->265, 265->269, 300, 304, 339, 346, 349, 386, 391, 410, 468, 473, 475, 479, 503, 555, 561-563, 601, 603, 606, 615, 655, 665, 683, 689, 697, 700, 723
+backend\nl2sql\service.py                  189     23     72     13    85%   46, 57-59, 119, 126, 131-134, 136, 138-147, 156-157, 209, 211, 213, 223, 235, 330
+backend\nl2sql\sessions.py                  93      1     12      1    98%   183
+backend\nl2sql\sql_types.py                 16      0     10      1    96%   25->23
+backend\nl2sql\synthetic.py                 55      2      8      2    94%   263, 267
+backend\nl2sql\synthetic_extensions.py      16      0      2      0   100%
+backend\nl2sql\telemetry.py                 31      0      0      0   100%
+backend\nl2sql\vector_index.py              54      5     18      3    89%   69, 72, 78-79, 94
+------------------------------------------------------------------------------------
+TOTAL                                     5137    418   1680    305    89%
+323 passed, 1 warning in 316.89s (0:05:16)
+Running: pre_commit run --all-files
+Ruff correctness and import checks.......................................Passed
+Ruff format check........................................................Passed
+Strict Pyright...........................................................Passed

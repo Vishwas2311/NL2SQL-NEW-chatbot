@@ -1,0 +1,30 @@
+{
+  "source": "fictional synthetic SQLite; no corporate connection",
+  "bootstrap_approve_publish_ms": 2001.542599999084,
+  "initial_bundle_build_ms": 1195.777500000986,
+  "questions": 30,
+  "correct_results": 30,
+  "query_p50_ms": 136.7598500000895,
+  "query_p95_ms": 170.86030000064056,
+  "unchanged_refresh_ms": 72.78570000016771,
+  "row_change_triggers_rebuild": false,
+  "row_change_result": [
+    {
+      "region": "Demo North",
+      "loan_exposure": "175001.50"
+    },
+    {
+      "region": "Demo South",
+      "loan_exposure": "75000.00"
+    }
+  ],
+  "new_column_state": "pending_approval",
+  "new_column_gains_permission": false,
+  "active_unchanged": true,
+  "model_calls": 0,
+  "inference_tokens": null,
+  "actual_oracle": "not run",
+  "actual_gemma": "not run",
+  "actual_faiss": "not installed or run",
+  "peak_python_traced_bytes": 2550848
+}

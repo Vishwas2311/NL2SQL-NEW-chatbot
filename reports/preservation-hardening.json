@@ -1,0 +1,344 @@
+{
+  "original_numbered_documents": 36,
+  "numbered_document_content_verified": true,
+  "original_ui_files_checked": 6,
+  "all_ui_byte_identical": true,
+  "original_directories_modified_by_this_task": false,
+  "preexisting_document_line_endings": "CRLF working copies differ bytewise from LF manifest/index; content hashes match after LF normalization; originals were not rewritten",
+  "documents": [
+    {
+      "path": "00_MASTER_DOCUMENT_REGISTER_AND_PRECODING_CHECKLIST.md",
+      "raw_sha256": "cfea46addbc141fc3de5dd604915947f63858bc0071c7815740a133d81490dbf",
+      "manifest_sha256": "20b33fb7310bfa8bb60a9e64e8c80135a5958dbdd2d6d4462264cf5bdb2b44f9",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "01_SCOPE_PRD_AND_NFR.md",
+      "raw_sha256": "c85401421444439a16cbc7753ce6a98a9f4427677efb6417dc6b8e4a3aacbb21",
+      "manifest_sha256": "5111095031e81ad467a083d0452ff88d40d2606d4c787fc70e335caa795cc52d",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "02_USER_JOURNEYS_AND_INTENTS.md",
+      "raw_sha256": "4362cc6a1ce8b9607874bc0ae15d6e4315d7db686fe130fd185ea06355de7c44",
+      "manifest_sha256": "aacdc0188bb4c8d989b79d310805ae374da2956964561398a65756100bf50c39",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "03_SYSTEM_ARCHITECTURE_AND_RUNTIME.md",
+      "raw_sha256": "0e589bd30b5c445f60d80a76a9bd9447f85a40459a1283f7154bba8214579364",
+      "manifest_sha256": "8b61dac0c3d5f9b4dd0013911ea286e2af8a34a236cf2dc763dd08a21d0977d6",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "04_SEMANTIC_CATALOG_AND_GOVERNANCE.md",
+      "raw_sha256": "6288cf8cfaf35515501e5c1a96f8876017063d080a7194fed8752060c4c5a038",
+      "manifest_sha256": "00e3c47f75412c87c2ea66c7136ade577e218b7e630e654d3a1ac003534c9c56",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "05_METADATA_INGESTION_AND_RECONCILIATION.md",
+      "raw_sha256": "03244a1545e6395da71b1c15d6d334106516cec3fbc152f9d1343133fb53374a",
+      "manifest_sha256": "76428c686413fb245c5f14df0f41161a3abb4649173673b78ec7e300db4aba18",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "06_RETRIEVAL_LEXICAL_VECTOR_AND_RANKING.md",
+      "raw_sha256": "789713125cc5707f8683b9f393ab85029a1f911293c67309ebf20e4b0508c6a0",
+      "manifest_sha256": "54b83f6a826d31ca15e03c41754dd26813596a787b6d09cd356a394b52d7ea75",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "07_JOIN_GRAPH_GRAIN_AND_TEMPORAL_RULES.md",
+      "raw_sha256": "dd01ead968d1c14d74b27fa47730f5616ac9327a5ce15e6b00e7184add92350c",
+      "manifest_sha256": "fcad8ca8301af6e1c1a278ee55da727e089eea6a403ab986b76916c78efc6af1",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "08_ENTITY_AND_VALUE_RESOLUTION.md",
+      "raw_sha256": "43c407e9e6eee0df3471c02438dd8cf9658bc9d4e64a565ac7fc546df17f6a33",
+      "manifest_sha256": "638b59a5e7de317048392cd6ecf027f8fd7dd1f30fe102627c6e4e3d05ff9e5d",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "09_ROUTING_CONFIDENCE_AND_EXECUTION_PATHS.md",
+      "raw_sha256": "0616f966560bfff6b736446c74cab84e26840d8cd42634a1cf9046ed74c9eea8",
+      "manifest_sha256": "4d0845b706009747a04b50eaed1cab2a404e7cc333f1657c1fb38f12ecae4c07",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "10_QUERY_PLAN_DSL_AND_VALIDATION.md",
+      "raw_sha256": "852fcb4e4d8f1624c40c6ebc75b7fb200de19847e5cb5c5b753788fb3963353c",
+      "manifest_sha256": "fac8f0e43da87ed0cfa0b5e837630058b497d9be60bce40f84f10896bc65a1fb",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "11_LOCAL_SLM_MODEL_CONTEXT_AND_RUNTIME.md",
+      "raw_sha256": "c1d8eb16ce57028c7150e4d818cd13b68e4e5ac74df28d20ca41f0e29e83e664",
+      "manifest_sha256": "f2e28ebfb1c055dbdd4bab4f4b9fbcd4f13d3bc683df0378315c9c0cee2d303c",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "12_DETERMINISTIC_SQL_COMPILER_AND_TEMPLATES.md",
+      "raw_sha256": "bd6feac6dae6df11f20bb61fac52df3feb9ef1caa1e228ebce9ea3602fe635cc",
+      "manifest_sha256": "278d6ebab176abef2317f1a4d0e9f48f92e46ffcf9547cf80800da7ae390c673",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "13_COMPLEX_SQL_FALLBACK_AND_REPAIR.md",
+      "raw_sha256": "0b485f432b503ab240ed7905b437cff943eb43a590d296e6db8f654a300ff414",
+      "manifest_sha256": "d0e630955808a18943fc439d9da8522f3c25393fa5dc97dd92530ac9c19a6437",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "14_SQL_VALIDATION_POLICY_AND_SECURITY.md",
+      "raw_sha256": "553aa9294e42808b59fcade36cf8c56234c6ae9bdfed909d0b480df843d1f903",
+      "manifest_sha256": "41970a130cc2a2bed156f4e8824b12352b768756ddb150bc5736ad614e0566df",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "15_ORACLE_ADAPTER_PREFLIGHT_AND_RESOURCES.md",
+      "raw_sha256": "ee4c0db957b15e46cdfd7a7353cb89b2e45f04bd0be51dc94ef889b8a1d0bdfc",
+      "manifest_sha256": "f448c07c9d265d6f9c0a067c8675d5da7c64e37222c33d5e64f133cf52a1e5b5",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "16_API_AUTH_AND_ERROR_CONTRACTS.md",
+      "raw_sha256": "79c1a705a93a978832ca54d0fd7260b6e89f979fd907d44bdc0f4d9da35b7509",
+      "manifest_sha256": "d635ff57e0d7033ec806177bd0a92cede5bea6587806517a41d3ce4cca9cf116",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "17_FRONTEND_UX_RESULT_TABLES_AND_ACCESSIBILITY.md",
+      "raw_sha256": "a3ba2c7e708906950f591140d202a5a1c4cd8f69485d62d88dd2a952ebb08c44",
+      "manifest_sha256": "d95a3bc57f64412c396793542fbd4f554bacb81726e2e3333c3c17ce24e68bb2",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "18_SESSIONS_FOLLOWUP_MEMORY_AND_PERSISTENCE.md",
+      "raw_sha256": "abfa65945d345fb9f879ec63eb55d2015314778beb91ae728430fc0118b93617",
+      "manifest_sha256": "4d029b049d7b7614434965446e868449d6a9b4bc66f22e8ea58f673c71bd87f9",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "19_RESULT_PROVENANCE_FRESHNESS_AND_EXPLANATIONS.md",
+      "raw_sha256": "77d73feb53ebb818e1fa1b5ce8d69de1ae2b4e389f1a7e334798ac33b6a21e1c",
+      "manifest_sha256": "d71ecf329c6668e44721fae6c5678d6b15db5032e80b8b4953f20fee776abf17",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "20_CACHING_LATENCY_AND_RESOURCE_BUDGETS.md",
+      "raw_sha256": "cc80fb88669588b0d1b218c0c20abc860c0d95a0d6c591d26745d5b512f148ef",
+      "manifest_sha256": "9c50b5a7e2ae068157fb434ea4ea87037c69b452ed432eb014218d1af9746cdd",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "21_SECURITY_PRIVACY_THREAT_MODEL.md",
+      "raw_sha256": "e802edfd8a90e37d1adb83656d89895b17c7ac49f41c990e3581667641f6d53f",
+      "manifest_sha256": "7f84dd7b36b89d4187c13a231f76c3a10db8ffe39575566bc189300467f47c75",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "22_PRIVATE_DEPLOYMENT_INFRA_AND_FULCRUM.md",
+      "raw_sha256": "2fd2349a2600ea7cd219cf7246997877c4cccac5f569930d890440ea05c34c65",
+      "manifest_sha256": "3a19775bc9e73684e63f735b321d46edcdfb87aaaf86b2f42af11b4de5675b5d",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "23_OBSERVABILITY_SRE_AND_OPERATIONS.md",
+      "raw_sha256": "5ffae9e2d211f326b83a2614466e95212c73191b09341b0cc604f854eb8ebb5c",
+      "manifest_sha256": "ecca81735228e3e898da8bf0f3cbb4f5406a206c9a23680c010ebd1f5561e94c",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "24_TEST_DATA_EVALUATION_AND_BENCHMARKS.md",
+      "raw_sha256": "7cae311d823488cad6e8e958fe2dad66ff308e05892e1b57e9ee99cb86c5df05",
+      "manifest_sha256": "627fb79cca185acc68b47ddd06d7de986991984f1663703a171b33369871fed3",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "25_IMPLEMENTATION_ROADMAP_DEPENDENCIES_AND_GATES.md",
+      "raw_sha256": "74a21e4caa9a0112ff2376e1ab03955ffe72e850df78e5aa22d09a738c8af4d5",
+      "manifest_sha256": "009810962a12896f2beac7244f898cf3acb6f5f8e78f3d03d22b64298d56bdf1",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "26_DOCUMENT_APPROVAL_RACI_AND_OPEN_DECISIONS.md",
+      "raw_sha256": "70a8c0a342cacb8e5877cfe32b10a32bf49113bb918491d73c6a5407623b3ab8",
+      "manifest_sha256": "ec21272b650926b185a2063faea5d5e3f11126297863e6acf6dd33bca9254af2",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "27_TYPED_CONTRACTS_ERRORS_AND_END_TO_END_EXAMPLE.md",
+      "raw_sha256": "99e81b7ec857bccd28e3955e4aa664d0ab2df8276bfc97c5a6de75400465cc23",
+      "manifest_sha256": "8522b46ed8392c05423e0dec5cd1b285a0b8c87cbff4f5f3e3e7b01b95077992",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "28_REPOSITORY_STRUCTURE_AND_TECHNOLOGY_ADRS.md",
+      "raw_sha256": "342874ba08c80aef2f9a6c068bbeadeb4ab68f7ce961ce540fdb9138fe6a6629",
+      "manifest_sha256": "ba8f7798eb61328f5a9a7d818334cc69f3d0eb08126a2f1e700286a47585f370",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "29_CHANGELOG_AND_EVIDENCE_REGISTER.md",
+      "raw_sha256": "5b5bcfc031d7e4a17a72f3a330733249f496bb6e6e4c0da8e39f5e4d3d68dead",
+      "manifest_sha256": "cf46d0a7a014c3f43d67e9f487d0868e80ba3e83879883468378f09cb43f5ace",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "30_CODING_STANDARDS_CODEX_AND_CI.md",
+      "raw_sha256": "2615c997ff6fee07986a717d7447513b47f7e340734a1a4d90f1c7bc8e406aa0",
+      "manifest_sha256": "5a1d0f3c9ca8fb9ccd52e468192e68dc9e1c3b80a47254d2c01521976cadcf04",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "31_GOVERNED_SEMANTIC_VIEWS_AND_COVERAGE.md",
+      "raw_sha256": "00da60e7870169884a5fa0951764117c87740ec77a4a24492867007094653a77",
+      "manifest_sha256": "fe6b0337357619e2c1aa874393b4403ac725eacdb8d14b2d979fb158a7c4b22d",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "32_RETRIEVAL_TECH_CHOICES_AND_EXPERIMENTS.md",
+      "raw_sha256": "616e6ffb228f875b5290fa8a5b891d4cacfd383fc12347a3714f06509a658a36",
+      "manifest_sha256": "f7c9b034410df461021ee6a0b1ed4647dec5b2ca56af55abc1a6585f16a3326a",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "33_ORACLE_EARLY_COMPATIBILITY_AND_PREFLIGHT.md",
+      "raw_sha256": "b3cfdd45c309b628a52fc37e32a51a32a25c7b84007865fbcf0383b160c39719",
+      "manifest_sha256": "44b15f1c42e9e12029f5b89e1225b51d3edf8d73d9575daf5de6bc9f02c696a0",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "34_TRACEABILITY_DECISIONS_AND_FINAL_REVIEW.md",
+      "raw_sha256": "76778886da0743965eb2b3034a3bcd30e94f1b4984a35fd78be1e9470ae26a01",
+      "manifest_sha256": "3f1ebb091ded6b192177921351247670027241d23a49a8341806c87654213d6b",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "35_EXISTING_UI_INTEGRATION_CONTRACT.md",
+      "raw_sha256": "c0da37e96a18ada0957967248e806c07b4ac5e3ee6ba79334a1d5e0f82df6e14",
+      "manifest_sha256": "6053df891fc29f7f36738dcd6d93d529d53d01b8ac36650fe8b128c49f08d6a9",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "CODEX_BACKEND_ONLY_HANDOFF.md",
+      "raw_sha256": "db2d32868105c9ce5ea4b489aa4fb9903a570b2a029e8a3ed8daac635488efb2",
+      "manifest_sha256": "5178c4827c729546830b7c07d8e397ab5cfbd23a5a4e8278b7d62456b964353d",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "README_START_HERE.md",
+      "raw_sha256": "842d97bb70d2ea2be4dd579654917532ca69ce3c3d651482bc4f5cdbed5e9ab8",
+      "manifest_sha256": "f50089169bb4dfb2822482eb407b248a938a68b9c701b0f1673b59b07346b558",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "V4_2_EXISTING_UI_BACKEND_ONLY_CONSOLIDATED_ARCHITECTURE.md",
+      "raw_sha256": "1dc6f35648b6ae3ea495586ed267646469c7b2e25b8859ba190249fc535fbf1f",
+      "manifest_sha256": "5665d8a8096c1e7ada7d29138a0f76dec761bc2c176ee90c856eeca9ee430462",
+      "matches_original_manifest_bytes": false,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "existing_ui_reference/ASSET_SHA256.json",
+      "raw_sha256": "fc48c0768492f6c2959a675de256935850814044f798e63dfd7ffd00396a1672",
+      "manifest_sha256": "fc48c0768492f6c2959a675de256935850814044f798e63dfd7ffd00396a1672",
+      "matches_original_manifest_bytes": true,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "existing_ui_reference/README.md",
+      "raw_sha256": "1426ac31aac4f81efc8f84c271b8a1b96b25ed6299b3c2a99732e7e92e9a73d1",
+      "manifest_sha256": "1426ac31aac4f81efc8f84c271b8a1b96b25ed6299b3c2a99732e7e92e9a73d1",
+      "matches_original_manifest_bytes": true,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "existing_ui_reference/index.html",
+      "raw_sha256": "ec90cc50d0736b54abda0a2ead19ae8f1156f8356543f3759b68164e9fa81033",
+      "manifest_sha256": "ec90cc50d0736b54abda0a2ead19ae8f1156f8356543f3759b68164e9fa81033",
+      "matches_original_manifest_bytes": true,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "existing_ui_reference/script.js",
+      "raw_sha256": "f31f4d08784f63be678d6f58d12709b15ddf0d69ecde3ad2c1521765f09b05ea",
+      "manifest_sha256": "f31f4d08784f63be678d6f58d12709b15ddf0d69ecde3ad2c1521765f09b05ea",
+      "matches_original_manifest_bytes": true,
+      "matches_manifest_with_lf_normalization": true
+    },
+    {
+      "path": "existing_ui_reference/style.css",
+      "raw_sha256": "4c3796c173fcb07ee0598adc4ceaba60519ae8e3a0f63a1e5349c7f5ede5077d",
+      "manifest_sha256": "4c3796c173fcb07ee0598adc4ceaba60519ae8e3a0f63a1e5349c7f5ede5077d",
+      "matches_original_manifest_bytes": true,
+      "matches_manifest_with_lf_normalization": true
+    }
+  ],
+  "ui": [
+    {
+      "path": "NL2SQL_V4_2_EXISTING_UI_BACKEND_ONLY_FULL_DOCUMENTATION\\NL2SQL_V4_2_EXISTING_UI_BACKEND_ONLY_2026-10-16\\existing_ui_reference\\index.html",
+      "matches_original_sha256": true
+    },
+    {
+      "path": "frontend-reference\\index.html",
+      "matches_original_sha256": true
+    },
+    {
+      "path": "NL2SQL_V4_2_EXISTING_UI_BACKEND_ONLY_FULL_DOCUMENTATION\\NL2SQL_V4_2_EXISTING_UI_BACKEND_ONLY_2026-10-16\\existing_ui_reference\\script.js",
+      "matches_original_sha256": true
+    },
+    {
+      "path": "frontend-reference\\script.js",
+      "matches_original_sha256": true
+    },
+    {
+      "path": "NL2SQL_V4_2_EXISTING_UI_BACKEND_ONLY_FULL_DOCUMENTATION\\NL2SQL_V4_2_EXISTING_UI_BACKEND_ONLY_2026-10-16\\existing_ui_reference\\style.css",
+      "matches_original_sha256": true
+    },
+    {
+      "path": "frontend-reference\\style.css",
+      "matches_original_sha256": true
+    }
+  ]
+}

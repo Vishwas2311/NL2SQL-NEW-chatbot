@@ -1,0 +1,19 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: Ruff correctness and import checks
+        entry: python scripts/hook.py ruff check
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: Ruff format check
+        entry: python scripts/hook.py ruff format --check
+        language: system
+        types: [python]
+      - id: pyright
+        name: Strict Pyright
+        entry: python scripts/hook.py pyright
+        language: system
+        pass_filenames: false
+        types: [python]

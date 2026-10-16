@@ -1,0 +1,17 @@
+{
+  "index.html": {
+    "sha256": "ec90cc50d0736b54abda0a2ead19ae8f1156f8356543f3759b68164e9fa81033",
+    "bytes": 6869,
+    "original_upload": "index(1).html"
+  },
+  "script.js": {
+    "sha256": "f31f4d08784f63be678d6f58d12709b15ddf0d69ecde3ad2c1521765f09b05ea",
+    "bytes": 22499,
+    "original_upload": "script(3).js"
+  },
+  "style.css": {
+    "sha256": "4c3796c173fcb07ee0598adc4ceaba60519ae8e3a0f63a1e5349c7f5ede5077d",
+    "bytes": 13709,
+    "original_upload": "style(3).css"
+  }
+}

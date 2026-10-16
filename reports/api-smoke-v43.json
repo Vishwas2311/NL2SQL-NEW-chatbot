@@ -1,0 +1,33 @@
+{
+  "version": "V4.3",
+  "transport": "actual loopback HTTP; no browser",
+  "health_status": 200,
+  "ready_status": 200,
+  "chat_status": 200,
+  "results": [
+    {
+      "region": "Demo North",
+      "loan_exposure": "175000.50"
+    },
+    {
+      "region": "Demo South",
+      "loan_exposure": "75000.00"
+    }
+  ],
+  "cli_workflow": [
+    "bootstrap",
+    "demo-trust (fictional only)",
+    "inspect",
+    "sign-demo (fictional only)",
+    "approve",
+    "publish",
+    "sync --dry-run",
+    "schedule --enable --dry-run",
+    "monitor --once",
+    "schedule --disable",
+    "rollback"
+  ],
+  "server_stopped_after_test": true,
+  "oracle_connected": false,
+  "model_downloaded": false
+}

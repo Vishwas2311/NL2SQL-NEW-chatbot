@@ -1,0 +1,21 @@
+{
+  "synthetic_runbook": "passed",
+  "commands": [
+    "bootstrap --dry-run",
+    "bootstrap",
+    "demo-trust",
+    "inspect",
+    "sign-demo",
+    "approve",
+    "publish",
+    "sync --dry-run",
+    "schedule --enable --interval 900 --dry-run",
+    "monitor --once",
+    "schedule --disable",
+    "rollback",
+    "status"
+  ],
+  "secrets_printed": false,
+  "external_connection": false,
+  "live_oracle_commands": "authorization guard and injected dictionary contracts only"
+}

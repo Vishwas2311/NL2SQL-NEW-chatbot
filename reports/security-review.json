@@ -1,0 +1,14 @@
+{
+  "project_files_checked": 121,
+  "actual_local_secret_values_checked": 6,
+  "findings": [],
+  "frontend_reference_git_diff_unchanged": true,
+  "original_v1_catalog_unchanged": true,
+  "original_ui_manifest_sha256_match": true,
+  "frontend_sha256": {
+    "frontend-reference/index.html": "ec90cc50d0736b54abda0a2ead19ae8f1156f8356543f3759b68164e9fa81033",
+    "frontend-reference/script.js": "f31f4d08784f63be678d6f58d12709b15ddf0d69ecde3ad2c1521765f09b05ea",
+    "frontend-reference/style.css": "4c3796c173fcb07ee0598adc4ceaba60519ae8e3a0f63a1e5349c7f5ede5077d"
+  },
+  "limitations": "Targeted private-key/local-credential scan and manual review, not an enterprise secret scanner or penetration test."
+}

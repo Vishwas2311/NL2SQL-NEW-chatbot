@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ews-nl2sql"
+version = "0.1.0"
+description = "Synthetic-first V4.2 governed NL-to-SQL backend"
+requires-python = ">=3.13,<3.14"
+dependencies = ["fastapi", "uvicorn", "pydantic>=2,<3", "pydantic-settings", "httpx", "networkx", "sqlglot", "PyJWT"]
+
+[project.optional-dependencies]
+oracle = ["oracledb"]
+dev = ["pytest", "pytest-cov", "ruff", "pylint", "pyright", "pre-commit", "types-networkx"]
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --cov=nl2sql --cov-branch --cov-report=term-missing"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.pyright]
+include = ["backend", "scripts"]
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.13"
+extraPaths = ["backend"]
+
+[tool.pylint.main]
+py-version = "3.13"
+jobs = 1
+
+[tool.pylint.messages_control]
+disable = ["missing-module-docstring", "too-few-public-methods", "duplicate-code"]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.design]
+max-args = 8
+max-positional-arguments = 8
+max-locals = 28
+max-branches = 30
+max-statements = 90
+max-bool-expr = 7

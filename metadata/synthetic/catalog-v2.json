@@ -1,0 +1,590 @@
+{
+  "version": "synthetic-v2",
+  "approved": true,
+  "effective_from": "2025-01-01",
+  "effective_to": "2026-12-31",
+  "default_as_of": "2026-09-30",
+  "fiscal_start_month": 4,
+  "tables": [
+    {
+      "id": "regions",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "region_id",
+          "kind": "text"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "region_id"
+      ]
+    },
+    {
+      "id": "customers",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "customer_id",
+          "kind": "text"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "alias",
+          "kind": "text"
+        },
+        {
+          "name": "region_id",
+          "kind": "text"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "customer_id"
+      ]
+    },
+    {
+      "id": "loans",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "loan_id",
+          "kind": "text"
+        },
+        {
+          "name": "customer_id",
+          "kind": "text"
+        },
+        {
+          "name": "as_of",
+          "kind": "date"
+        },
+        {
+          "name": "amount_minor",
+          "kind": "integer"
+        },
+        {
+          "name": "status",
+          "kind": "text"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "loan_id",
+        "as_of"
+      ]
+    },
+    {
+      "id": "accounts",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "account_id",
+          "kind": "text"
+        },
+        {
+          "name": "customer_id",
+          "kind": "text"
+        },
+        {
+          "name": "status",
+          "kind": "text"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "account_id"
+      ]
+    },
+    {
+      "id": "payments",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "payment_id",
+          "kind": "text"
+        },
+        {
+          "name": "customer_id",
+          "kind": "text"
+        },
+        {
+          "name": "status",
+          "kind": "text"
+        },
+        {
+          "name": "paid_on",
+          "kind": "date"
+        },
+        {
+          "name": "amount_minor",
+          "kind": "integer"
+        },
+        {
+          "name": "fee_minor",
+          "kind": "integer"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "payment_id"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "loans_customer",
+      "left": "loans",
+      "right": "customers",
+      "pairs": [
+        [
+          "tenant_id",
+          "tenant_id"
+        ],
+        [
+          "customer_id",
+          "customer_id"
+        ]
+      ],
+      "cardinality": "many_to_one",
+      "certified": true,
+      "temporal": "static"
+    },
+    {
+      "id": "accounts_customer",
+      "left": "accounts",
+      "right": "customers",
+      "pairs": [
+        [
+          "tenant_id",
+          "tenant_id"
+        ],
+        [
+          "customer_id",
+          "customer_id"
+        ]
+      ],
+      "cardinality": "many_to_one",
+      "certified": true,
+      "temporal": "static"
+    },
+    {
+      "id": "customer_region",
+      "left": "customers",
+      "right": "regions",
+      "pairs": [
+        [
+          "tenant_id",
+          "tenant_id"
+        ],
+        [
+          "region_id",
+          "region_id"
+        ]
+      ],
+      "cardinality": "many_to_one",
+      "certified": true,
+      "temporal": "static"
+    },
+    {
+      "id": "payments_customer",
+      "left": "payments",
+      "right": "customers",
+      "pairs": [
+        [
+          "tenant_id",
+          "tenant_id"
+        ],
+        [
+          "customer_id",
+          "customer_id"
+        ]
+      ],
+      "cardinality": "many_to_one",
+      "certified": true,
+      "temporal": "static"
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "region",
+      "table": "regions",
+      "column": "name",
+      "kind": "text",
+      "entity": false
+    },
+    {
+      "id": "region_id",
+      "table": "regions",
+      "column": "region_id",
+      "kind": "text",
+      "entity": false
+    },
+    {
+      "id": "customer_id",
+      "table": "customers",
+      "column": "customer_id",
+      "kind": "text",
+      "entity": true
+    },
+    {
+      "id": "customer",
+      "table": "customers",
+      "column": "name",
+      "kind": "text",
+      "entity": true
+    },
+    {
+      "id": "reporting_date",
+      "table": "loans",
+      "column": "as_of",
+      "kind": "date",
+      "entity": false
+    },
+    {
+      "id": "payment_date",
+      "table": "payments",
+      "column": "paid_on",
+      "kind": "date",
+      "entity": false
+    }
+  ],
+  "metrics": [
+    {
+      "id": "loan_exposure",
+      "label": "Loan exposure",
+      "aliases": [
+        "outstanding exposure",
+        "total exposure",
+        "EOP exposure",
+        "end of period exposure"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "amount_minor",
+      "aggregate": "sum",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded.",
+      "expression": null
+    },
+    {
+      "id": "loan_count",
+      "label": "Loan count",
+      "aliases": [
+        "number of loans"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "loan_id",
+      "aggregate": "count",
+      "unit": "count",
+      "scale": 1,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded.",
+      "expression": null
+    },
+    {
+      "id": "average_exposure",
+      "label": "Average exposure",
+      "aliases": [
+        "mean loan exposure"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "amount_minor",
+      "aggregate": "avg",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded.",
+      "expression": null
+    },
+    {
+      "id": "largest_exposure",
+      "label": "Largest exposure",
+      "aliases": [
+        "maximum loan exposure"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "amount_minor",
+      "aggregate": "max",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded.",
+      "expression": null
+    },
+    {
+      "id": "smallest_exposure",
+      "label": "Smallest exposure",
+      "aliases": [
+        "minimum loan exposure"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "amount_minor",
+      "aggregate": "min",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded.",
+      "expression": null
+    },
+    {
+      "id": "account_count",
+      "label": "Account count",
+      "aliases": [
+        "number of accounts"
+      ],
+      "domain": "deposits",
+      "table": "accounts",
+      "column": "account_id",
+      "aggregate": "count",
+      "unit": "count",
+      "scale": 1,
+      "temporal": "current",
+      "definition": "Active fictional accounts now.",
+      "expression": null
+    },
+    {
+      "id": "payment_amount",
+      "label": "Payment amount",
+      "aliases": [],
+      "domain": "payments",
+      "table": "payments",
+      "column": "amount_minor",
+      "aggregate": "sum",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "event",
+      "definition": "Active fictional payments on half-open ISO business-date intervals.",
+      "expression": null
+    },
+    {
+      "id": "payment_fee",
+      "label": "Payment fee",
+      "aliases": [],
+      "domain": "payments",
+      "table": "payments",
+      "column": "fee_minor",
+      "aggregate": "sum",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "event",
+      "definition": "Active fictional payments on half-open ISO business-date intervals.",
+      "expression": null
+    },
+    {
+      "id": "payment_count",
+      "label": "Payment count",
+      "aliases": [],
+      "domain": "payments",
+      "table": "payments",
+      "column": "payment_id",
+      "aggregate": "count",
+      "unit": "count",
+      "scale": 1,
+      "temporal": "event",
+      "definition": "Active fictional payments on half-open ISO business-date intervals.",
+      "expression": null
+    },
+    {
+      "id": "net_payments",
+      "label": "Net payments",
+      "aliases": [
+        "net receipts"
+      ],
+      "domain": "payments",
+      "table": "payments",
+      "column": "amount_minor",
+      "aggregate": "sum",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "event",
+      "definition": "SUM(payment amount) minus SUM(fee); missing aggregates remain NULL.",
+      "expression": {
+        "kind": "difference",
+        "numerator": "payment_amount",
+        "denominator": "payment_fee"
+      }
+    },
+    {
+      "id": "fee_rate",
+      "label": "Fee rate",
+      "aliases": [
+        "fee percentage"
+      ],
+      "domain": "payments",
+      "table": "payments",
+      "column": "fee_minor",
+      "aggregate": "sum",
+      "unit": "percent",
+      "scale": 1,
+      "temporal": "event",
+      "definition": "100 * SUM(fee) / SUM(payment amount); zero or missing denominator returns NULL.",
+      "expression": {
+        "kind": "ratio",
+        "numerator": "payment_fee",
+        "denominator": "payment_amount"
+      }
+    }
+  ],
+  "views": [
+    {
+      "id": "loan_snapshot",
+      "version": "1.0.0",
+      "domain": "credit",
+      "root": "loans",
+      "grain": [
+        "tenant_id",
+        "loan_id",
+        "as_of"
+      ],
+      "metrics": [
+        "loan_exposure",
+        "loan_count",
+        "average_exposure",
+        "largest_exposure",
+        "smallest_exposure"
+      ],
+      "dimensions": [
+        "region",
+        "region_id",
+        "customer_id",
+        "customer",
+        "reporting_date"
+      ],
+      "relationships": [
+        "loans_customer",
+        "customer_region"
+      ],
+      "time_column": "as_of",
+      "time_kind": "snapshot",
+      "components": [],
+      "mandatory_status": "active",
+      "certified": true,
+      "evidence": "Synthetic golden fixture v1; not enterprise approval"
+    },
+    {
+      "id": "account_current",
+      "version": "1.0.0",
+      "domain": "deposits",
+      "root": "accounts",
+      "grain": [
+        "tenant_id",
+        "account_id"
+      ],
+      "metrics": [
+        "account_count"
+      ],
+      "dimensions": [
+        "region",
+        "region_id",
+        "customer_id",
+        "customer"
+      ],
+      "relationships": [
+        "accounts_customer",
+        "customer_region"
+      ],
+      "time_column": null,
+      "time_kind": "snapshot",
+      "components": [],
+      "mandatory_status": "active",
+      "certified": true,
+      "evidence": "Synthetic golden fixture v1; not enterprise approval"
+    },
+    {
+      "id": "payment_events",
+      "version": "1.0.0",
+      "domain": "payments",
+      "root": "payments",
+      "grain": [
+        "tenant_id",
+        "payment_id"
+      ],
+      "metrics": [
+        "payment_amount",
+        "payment_fee",
+        "payment_count",
+        "net_payments",
+        "fee_rate"
+      ],
+      "dimensions": [
+        "region",
+        "region_id",
+        "customer_id",
+        "customer",
+        "payment_date"
+      ],
+      "relationships": [
+        "payments_customer",
+        "customer_region"
+      ],
+      "time_column": "paid_on",
+      "time_kind": "event",
+      "components": [],
+      "mandatory_status": "active",
+      "certified": true,
+      "evidence": "Fictional independent event/fee/fiscal fixtures"
+    },
+    {
+      "id": "customer_portfolio",
+      "version": "1.0.0",
+      "domain": "credit",
+      "root": "customers",
+      "grain": [
+        "tenant_id",
+        "customer_id"
+      ],
+      "metrics": [
+        "loan_exposure",
+        "loan_count",
+        "account_count"
+      ],
+      "dimensions": [
+        "region",
+        "region_id",
+        "customer_id",
+        "customer"
+      ],
+      "relationships": [
+        "customer_region"
+      ],
+      "time_column": null,
+      "time_kind": "snapshot",
+      "components": [
+        "loan_snapshot",
+        "account_current"
+      ],
+      "mandatory_status": "active",
+      "certified": true,
+      "evidence": "Separately aggregate dated loans and current accounts to customer grain"
+    }
+  ]
+}

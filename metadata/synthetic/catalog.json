@@ -1,0 +1,355 @@
+{
+  "version": "synthetic-v1",
+  "approved": true,
+  "effective_from": "2025-01-01",
+  "effective_to": "2026-12-31",
+  "default_as_of": "2026-09-30",
+  "tables": [
+    {
+      "id": "regions",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "region_id",
+          "kind": "text"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "region_id"
+      ]
+    },
+    {
+      "id": "customers",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "customer_id",
+          "kind": "text"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "alias",
+          "kind": "text"
+        },
+        {
+          "name": "region_id",
+          "kind": "text"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "customer_id"
+      ]
+    },
+    {
+      "id": "loans",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "loan_id",
+          "kind": "text"
+        },
+        {
+          "name": "customer_id",
+          "kind": "text"
+        },
+        {
+          "name": "as_of",
+          "kind": "date"
+        },
+        {
+          "name": "amount_minor",
+          "kind": "integer"
+        },
+        {
+          "name": "status",
+          "kind": "text"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "loan_id",
+        "as_of"
+      ]
+    },
+    {
+      "id": "accounts",
+      "columns": [
+        {
+          "name": "tenant_id",
+          "kind": "text"
+        },
+        {
+          "name": "account_id",
+          "kind": "text"
+        },
+        {
+          "name": "customer_id",
+          "kind": "text"
+        },
+        {
+          "name": "status",
+          "kind": "text"
+        }
+      ],
+      "grain": [
+        "tenant_id",
+        "account_id"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "loans_customer",
+      "left": "loans",
+      "right": "customers",
+      "pairs": [
+        [
+          "tenant_id",
+          "tenant_id"
+        ],
+        [
+          "customer_id",
+          "customer_id"
+        ]
+      ],
+      "cardinality": "many_to_one",
+      "certified": true
+    },
+    {
+      "id": "accounts_customer",
+      "left": "accounts",
+      "right": "customers",
+      "pairs": [
+        [
+          "tenant_id",
+          "tenant_id"
+        ],
+        [
+          "customer_id",
+          "customer_id"
+        ]
+      ],
+      "cardinality": "many_to_one",
+      "certified": true
+    },
+    {
+      "id": "customer_region",
+      "left": "customers",
+      "right": "regions",
+      "pairs": [
+        [
+          "tenant_id",
+          "tenant_id"
+        ],
+        [
+          "region_id",
+          "region_id"
+        ]
+      ],
+      "cardinality": "many_to_one",
+      "certified": true
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "region",
+      "table": "regions",
+      "column": "name",
+      "kind": "text",
+      "entity": false
+    },
+    {
+      "id": "region_id",
+      "table": "regions",
+      "column": "region_id",
+      "kind": "text",
+      "entity": false
+    },
+    {
+      "id": "customer_id",
+      "table": "customers",
+      "column": "customer_id",
+      "kind": "text",
+      "entity": true
+    },
+    {
+      "id": "customer",
+      "table": "customers",
+      "column": "name",
+      "kind": "text",
+      "entity": true
+    }
+  ],
+  "metrics": [
+    {
+      "id": "loan_exposure",
+      "label": "Loan exposure",
+      "aliases": [
+        "outstanding exposure",
+        "total exposure"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "amount_minor",
+      "aggregate": "sum",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded."
+    },
+    {
+      "id": "loan_count",
+      "label": "Loan count",
+      "aliases": [
+        "number of loans"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "loan_id",
+      "aggregate": "count",
+      "unit": "count",
+      "scale": 1,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded."
+    },
+    {
+      "id": "average_exposure",
+      "label": "Average exposure",
+      "aliases": [
+        "mean loan exposure"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "amount_minor",
+      "aggregate": "avg",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded."
+    },
+    {
+      "id": "largest_exposure",
+      "label": "Largest exposure",
+      "aliases": [
+        "maximum loan exposure"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "amount_minor",
+      "aggregate": "max",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded."
+    },
+    {
+      "id": "smallest_exposure",
+      "label": "Smallest exposure",
+      "aliases": [
+        "minimum loan exposure"
+      ],
+      "domain": "credit",
+      "table": "loans",
+      "column": "amount_minor",
+      "aggregate": "min",
+      "unit": "INR",
+      "scale": 100,
+      "temporal": "snapshot",
+      "definition": "Active fictional INR loans at one reporting snapshot; NULL amounts excluded."
+    },
+    {
+      "id": "account_count",
+      "label": "Account count",
+      "aliases": [
+        "number of accounts"
+      ],
+      "domain": "deposits",
+      "table": "accounts",
+      "column": "account_id",
+      "aggregate": "count",
+      "unit": "count",
+      "scale": 1,
+      "temporal": "current",
+      "definition": "Active fictional accounts now."
+    }
+  ],
+  "views": [
+    {
+      "id": "loan_snapshot",
+      "version": "1.0.0",
+      "domain": "credit",
+      "root": "loans",
+      "grain": [
+        "tenant_id",
+        "loan_id",
+        "as_of"
+      ],
+      "metrics": [
+        "loan_exposure",
+        "loan_count",
+        "average_exposure",
+        "largest_exposure",
+        "smallest_exposure"
+      ],
+      "dimensions": [
+        "region",
+        "region_id",
+        "customer_id",
+        "customer"
+      ],
+      "relationships": [
+        "loans_customer",
+        "customer_region"
+      ],
+      "time_column": "as_of",
+      "mandatory_status": "active",
+      "certified": true,
+      "evidence": "Synthetic golden fixture v1; not enterprise approval"
+    },
+    {
+      "id": "account_current",
+      "version": "1.0.0",
+      "domain": "deposits",
+      "root": "accounts",
+      "grain": [
+        "tenant_id",
+        "account_id"
+      ],
+      "metrics": [
+        "account_count"
+      ],
+      "dimensions": [
+        "region",
+        "region_id",
+        "customer_id",
+        "customer"
+      ],
+      "relationships": [
+        "accounts_customer",
+        "customer_region"
+      ],
+      "time_column": null,
+      "mandatory_status": "active",
+      "certified": true,
+      "evidence": "Synthetic golden fixture v1; not enterprise approval"
+    }
+  ]
+}

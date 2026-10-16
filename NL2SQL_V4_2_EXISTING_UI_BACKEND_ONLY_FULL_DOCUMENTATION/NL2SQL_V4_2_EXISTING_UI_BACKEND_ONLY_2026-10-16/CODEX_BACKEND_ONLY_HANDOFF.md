@@ -1,0 +1,7 @@
+# Codex implementation override — V4.2 existing UI only
+
+Before work, read numbered documents 00–35. **Do not build React, TypeScript, Vite, or any UI**, do not redesign supplied HTML/CSS/JS. The three original assets are immutable references in `existing_ui_reference/` and will be integrated later, only when the user asks. Implement the NL-to-SQL backend (FastAPI, Pydantic, catalog, semantic views, lexical-first + optional embeddings/FAISS, NetworkX graph, Gemma 4 12B adapter, typed plans, compiler, security, Oracle adapter, sessions), following phase gates.
+
+Create Pydantic DTOs and a thin backend compatibility interface for the observed current client routes: `GET /health`, `POST /ews-chatbot/chat`, `GET /ews-chatbot/get_all_sessions`, `GET /ews-chatbot/load_session/{session_id}`, and optional `POST /api/v1/speech/transcriptions`. Prepare session deletion compatibility without adding UI controls. JSON chat expects `message`, `session_id`, `user_id` (untrusted). The reply expects `session_id`, `response`, `results` (row-object array), optional approved `sql_query`. Preserve typed modern internal contracts. Authenticate server-side and reject misuse of client `user_id` and cross-user session IDs.
+
+Ponytail lifecycle hook support, if approved/installed, is separate from Pylint and Git pre-commit checks; keep Ruff/Pylint/Pyright/Pytest/CI for backend. Do not claim hooks are enabled without checking. No production credentials or Oracle data. First phase: audit docs, backend scaffold + CI + API mock contracts/tests. Stop and report results.

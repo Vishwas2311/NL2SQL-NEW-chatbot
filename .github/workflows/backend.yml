@@ -1,0 +1,22 @@
+name: Synthetic backend quality
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  local-quality:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.16'
+          cache: pip
+      - name: Create pinned environment
+        run: |
+          python -m venv .venv
+          .venv/Scripts/python -m pip install -r requirements.lock
+          .venv/Scripts/python -m pip install --no-deps -e .
+      - name: All mandatory checks
+        run: .venv/Scripts/python scripts/check.py
+      - name: Synthetic benchmark
+        run: .venv/Scripts/python scripts/benchmark.py

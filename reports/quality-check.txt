@@ -1,0 +1,59 @@
+Running: ruff check .
+All checks passed!
+Running: ruff format --check .
+95 files already formatted
+Running: pylint backend/nl2sql
+
+--------------------------------------------------------------------
+Your code has been rated at 10.00/10 (previous run: 10.00/10, +0.00)
+
+Running: pyright
+0 errors, 0 warnings, 0 informations
+Running: pytest -q
+........................................................................ [ 37%]
+........................................................................ [ 74%]
+..................................................                       [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\vishw\OneDrive\Desktop\NL2SQL CHATBOT\New folder\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.13.16-final-0 _______________
+
+Name                                     Stmts   Miss Branch BrPart  Cover   Missing
+------------------------------------------------------------------------------------
+backend\nl2sql\__init__.py                   0      0      0      0   100%
+backend\nl2sql\__main__.py                  23     23      4      0     0%   3-35
+backend\nl2sql\api.py                      178      6      8      3    95%   110, 177, 186, 234-235, 272
+backend\nl2sql\auth.py                      32      1     14      2    93%   25, 42->48
+backend\nl2sql\catalog.py                  165     19    114     21    86%   29->28, 48, 70, 91, 93, 114, 117, 119, 120->112, 129, 133, 137, 139, 143, 172, 199, 215, 223, 225, 227, 229
+backend\nl2sql\compatibility.py              5      0      2      0   100%
+backend\nl2sql\compiler.py                 113      3     46      3    96%   60, 98, 135
+backend\nl2sql\composite.py                 51      0     16      2    97%   99->106, 119->121
+backend\nl2sql\config.py                    46      5     10      5    82%   51, 53, 55, 57, 59
+backend\nl2sql\database.py                  92      8     28      6    88%   51, 54, 93, 99, 103, 116, 128-129
+backend\nl2sql\domain.py                   186      0      4      0   100%
+backend\nl2sql\evaluation.py               111      0     12      0   100%
+backend\nl2sql\middleware.py                30      2     10      3    88%   23, 33->20, 42
+backend\nl2sql\model.py                    117      5     26      4    94%   47, 68, 175, 210, 270
+backend\nl2sql\oracle.py                   155     11     46      5    92%   111, 149, 151, 159-160, 169-170, 211, 239, 280-281
+backend\nl2sql\planning.py                 157     23    104     18    83%   31, 38, 47, 56, 59-64, 83-88, 90, 100, 113, 135->132, 175, 197, 203, 263, 272, 276, 289, 294
+backend\nl2sql\ranking.py                   20      0      2      0   100%
+backend\nl2sql\retrieval.py                115      3     52      4    96%   91, 101->100, 136, 162
+backend\nl2sql\retrieval_experiment.py       9      0      2      0   100%
+backend\nl2sql\security.py                 345     37    174     35    86%   79, 86, 105, 132, 146, 166, 169-170, 193, 206, 211, 217, 222, 255, 259, 294, 301, 304, 341, 346, 365, 423, 428, 430, 434, 457, 499, 537, 539, 542, 551, 583, 593, 611, 617, 625, 628
+backend\nl2sql\service.py                  146      9     52      7    92%   88, 96-97, 139, 141, 143, 151, 156, 214
+backend\nl2sql\sessions.py                  73      1      8      1    98%   155
+backend\nl2sql\sql_types.py                 12      0      6      0   100%
+backend\nl2sql\synthetic.py                 55      2      8      2    94%   263, 267
+backend\nl2sql\synthetic_extensions.py      16      0      2      0   100%
+backend\nl2sql\telemetry.py                  2      0      0      0   100%
+------------------------------------------------------------------------------------
+TOTAL                                     2254    158    750    121    90%
+194 passed, 1 warning in 88.38s (0:01:28)
+Running: pre_commit run --all-files
+Ruff correctness and import checks.......................................Passed
+Ruff format check........................................................Passed
+Strict Pyright...........................................................Passed

@@ -1,0 +1,246 @@
+{
+  "release": "V4.2 existing UI/backend only",
+  "source_archive": "NL2SQL_V4_1_REFINED_FULL_DOCUMENTATION(1).zip",
+  "source_archive_sha256": "81671f356c278c795813e590f73d3e12fd0001b5b28fba2488029286ffb55476",
+  "numbered_documents": 36,
+  "existing_ui_source_files": {
+    "index.html": {
+      "sha256": "ec90cc50d0736b54abda0a2ead19ae8f1156f8356543f3759b68164e9fa81033",
+      "bytes": 6869,
+      "original_upload": "index(1).html"
+    },
+    "script.js": {
+      "sha256": "f31f4d08784f63be678d6f58d12709b15ddf0d69ecde3ad2c1521765f09b05ea",
+      "bytes": 22499,
+      "original_upload": "script(3).js"
+    },
+    "style.css": {
+      "sha256": "4c3796c173fcb07ee0598adc4ceaba60519ae8e3a0f63a1e5349c7f5ede5077d",
+      "bytes": 13709,
+      "original_upload": "style(3).css"
+    }
+  },
+  "files": [
+    {
+      "path": "00_MASTER_DOCUMENT_REGISTER_AND_PRECODING_CHECKLIST.md",
+      "bytes": 15067,
+      "sha256": "20b33fb7310bfa8bb60a9e64e8c80135a5958dbdd2d6d4462264cf5bdb2b44f9"
+    },
+    {
+      "path": "01_SCOPE_PRD_AND_NFR.md",
+      "bytes": 16067,
+      "sha256": "5111095031e81ad467a083d0452ff88d40d2606d4c787fc70e335caa795cc52d"
+    },
+    {
+      "path": "02_USER_JOURNEYS_AND_INTENTS.md",
+      "bytes": 13867,
+      "sha256": "aacdc0188bb4c8d989b79d310805ae374da2956964561398a65756100bf50c39"
+    },
+    {
+      "path": "03_SYSTEM_ARCHITECTURE_AND_RUNTIME.md",
+      "bytes": 14024,
+      "sha256": "8b61dac0c3d5f9b4dd0013911ea286e2af8a34a236cf2dc763dd08a21d0977d6"
+    },
+    {
+      "path": "04_SEMANTIC_CATALOG_AND_GOVERNANCE.md",
+      "bytes": 12462,
+      "sha256": "00e3c47f75412c87c2ea66c7136ade577e218b7e630e654d3a1ac003534c9c56"
+    },
+    {
+      "path": "05_METADATA_INGESTION_AND_RECONCILIATION.md",
+      "bytes": 11313,
+      "sha256": "76428c686413fb245c5f14df0f41161a3abb4649173673b78ec7e300db4aba18"
+    },
+    {
+      "path": "06_RETRIEVAL_LEXICAL_VECTOR_AND_RANKING.md",
+      "bytes": 11680,
+      "sha256": "54b83f6a826d31ca15e03c41754dd26813596a787b6d09cd356a394b52d7ea75"
+    },
+    {
+      "path": "07_JOIN_GRAPH_GRAIN_AND_TEMPORAL_RULES.md",
+      "bytes": 11867,
+      "sha256": "fcad8ca8301af6e1c1a278ee55da727e089eea6a403ab986b76916c78efc6af1"
+    },
+    {
+      "path": "08_ENTITY_AND_VALUE_RESOLUTION.md",
+      "bytes": 9427,
+      "sha256": "638b59a5e7de317048392cd6ecf027f8fd7dd1f30fe102627c6e4e3d05ff9e5d"
+    },
+    {
+      "path": "09_ROUTING_CONFIDENCE_AND_EXECUTION_PATHS.md",
+      "bytes": 12503,
+      "sha256": "4d0845b706009747a04b50eaed1cab2a404e7cc333f1657c1fb38f12ecae4c07"
+    },
+    {
+      "path": "10_QUERY_PLAN_DSL_AND_VALIDATION.md",
+      "bytes": 10920,
+      "sha256": "fac8f0e43da87ed0cfa0b5e837630058b497d9be60bce40f84f10896bc65a1fb"
+    },
+    {
+      "path": "11_LOCAL_SLM_MODEL_CONTEXT_AND_RUNTIME.md",
+      "bytes": 12386,
+      "sha256": "f2e28ebfb1c055dbdd4bab4f4b9fbcd4f13d3bc683df0378315c9c0cee2d303c"
+    },
+    {
+      "path": "12_DETERMINISTIC_SQL_COMPILER_AND_TEMPLATES.md",
+      "bytes": 10745,
+      "sha256": "278d6ebab176abef2317f1a4d0e9f48f92e46ffcf9547cf80800da7ae390c673"
+    },
+    {
+      "path": "13_COMPLEX_SQL_FALLBACK_AND_REPAIR.md",
+      "bytes": 10768,
+      "sha256": "d0e630955808a18943fc439d9da8522f3c25393fa5dc97dd92530ac9c19a6437"
+    },
+    {
+      "path": "14_SQL_VALIDATION_POLICY_AND_SECURITY.md",
+      "bytes": 10730,
+      "sha256": "41970a130cc2a2bed156f4e8824b12352b768756ddb150bc5736ad614e0566df"
+    },
+    {
+      "path": "15_ORACLE_ADAPTER_PREFLIGHT_AND_RESOURCES.md",
+      "bytes": 10375,
+      "sha256": "f448c07c9d265d6f9c0a067c8675d5da7c64e37222c33d5e64f133cf52a1e5b5"
+    },
+    {
+      "path": "16_API_AUTH_AND_ERROR_CONTRACTS.md",
+      "bytes": 10656,
+      "sha256": "d635ff57e0d7033ec806177bd0a92cede5bea6587806517a41d3ce4cca9cf116"
+    },
+    {
+      "path": "17_FRONTEND_UX_RESULT_TABLES_AND_ACCESSIBILITY.md",
+      "bytes": 9271,
+      "sha256": "d95a3bc57f64412c396793542fbd4f554bacb81726e2e3333c3c17ce24e68bb2"
+    },
+    {
+      "path": "18_SESSIONS_FOLLOWUP_MEMORY_AND_PERSISTENCE.md",
+      "bytes": 10685,
+      "sha256": "4d029b049d7b7614434965446e868449d6a9b4bc66f22e8ea58f673c71bd87f9"
+    },
+    {
+      "path": "19_RESULT_PROVENANCE_FRESHNESS_AND_EXPLANATIONS.md",
+      "bytes": 10736,
+      "sha256": "d71ecf329c6668e44721fae6c5678d6b15db5032e80b8b4953f20fee776abf17"
+    },
+    {
+      "path": "20_CACHING_LATENCY_AND_RESOURCE_BUDGETS.md",
+      "bytes": 11144,
+      "sha256": "9c50b5a7e2ae068157fb434ea4ea87037c69b452ed432eb014218d1af9746cdd"
+    },
+    {
+      "path": "21_SECURITY_PRIVACY_THREAT_MODEL.md",
+      "bytes": 10722,
+      "sha256": "7f84dd7b36b89d4187c13a231f76c3a10db8ffe39575566bc189300467f47c75"
+    },
+    {
+      "path": "22_PRIVATE_DEPLOYMENT_INFRA_AND_FULCRUM.md",
+      "bytes": 10572,
+      "sha256": "3a19775bc9e73684e63f735b321d46edcdfb87aaaf86b2f42af11b4de5675b5d"
+    },
+    {
+      "path": "23_OBSERVABILITY_SRE_AND_OPERATIONS.md",
+      "bytes": 11150,
+      "sha256": "ecca81735228e3e898da8bf0f3cbb4f5406a206c9a23680c010ebd1f5561e94c"
+    },
+    {
+      "path": "24_TEST_DATA_EVALUATION_AND_BENCHMARKS.md",
+      "bytes": 13477,
+      "sha256": "627fb79cca185acc68b47ddd06d7de986991984f1663703a171b33369871fed3"
+    },
+    {
+      "path": "25_IMPLEMENTATION_ROADMAP_DEPENDENCIES_AND_GATES.md",
+      "bytes": 14863,
+      "sha256": "009810962a12896f2beac7244f898cf3acb6f5f8e78f3d03d22b64298d56bdf1"
+    },
+    {
+      "path": "26_DOCUMENT_APPROVAL_RACI_AND_OPEN_DECISIONS.md",
+      "bytes": 10080,
+      "sha256": "ec21272b650926b185a2063faea5d5e3f11126297863e6acf6dd33bca9254af2"
+    },
+    {
+      "path": "27_TYPED_CONTRACTS_ERRORS_AND_END_TO_END_EXAMPLE.md",
+      "bytes": 19596,
+      "sha256": "8522b46ed8392c05423e0dec5cd1b285a0b8c87cbff4f5f3e3e7b01b95077992"
+    },
+    {
+      "path": "28_REPOSITORY_STRUCTURE_AND_TECHNOLOGY_ADRS.md",
+      "bytes": 13405,
+      "sha256": "ba8f7798eb61328f5a9a7d818334cc69f3d0eb08126a2f1e700286a47585f370"
+    },
+    {
+      "path": "29_CHANGELOG_AND_EVIDENCE_REGISTER.md",
+      "bytes": 5198,
+      "sha256": "cf46d0a7a014c3f43d67e9f487d0868e80ba3e83879883468378f09cb43f5ace"
+    },
+    {
+      "path": "30_CODING_STANDARDS_CODEX_AND_CI.md",
+      "bytes": 9328,
+      "sha256": "5a1d0f3c9ca8fb9ccd52e468192e68dc9e1c3b80a47254d2c01521976cadcf04"
+    },
+    {
+      "path": "31_GOVERNED_SEMANTIC_VIEWS_AND_COVERAGE.md",
+      "bytes": 7251,
+      "sha256": "fe6b0337357619e2c1aa874393b4403ac725eacdb8d14b2d979fb158a7c4b22d"
+    },
+    {
+      "path": "32_RETRIEVAL_TECH_CHOICES_AND_EXPERIMENTS.md",
+      "bytes": 5804,
+      "sha256": "f7c9b034410df461021ee6a0b1ed4647dec5b2ca56af55abc1a6585f16a3326a"
+    },
+    {
+      "path": "33_ORACLE_EARLY_COMPATIBILITY_AND_PREFLIGHT.md",
+      "bytes": 4756,
+      "sha256": "44b15f1c42e9e12029f5b89e1225b51d3edf8d73d9575daf5de6bc9f02c696a0"
+    },
+    {
+      "path": "34_TRACEABILITY_DECISIONS_AND_FINAL_REVIEW.md",
+      "bytes": 7039,
+      "sha256": "3f1ebb091ded6b192177921351247670027241d23a49a8341806c87654213d6b"
+    },
+    {
+      "path": "35_EXISTING_UI_INTEGRATION_CONTRACT.md",
+      "bytes": 11640,
+      "sha256": "6053df891fc29f7f36738dcd6d93d529d53d01b8ac36650fe8b128c49f08d6a9"
+    },
+    {
+      "path": "CODEX_BACKEND_ONLY_HANDOFF.md",
+      "bytes": 1568,
+      "sha256": "5178c4827c729546830b7c07d8e397ab5cfbd23a5a4e8278b7d62456b964353d"
+    },
+    {
+      "path": "README_START_HERE.md",
+      "bytes": 3984,
+      "sha256": "f50089169bb4dfb2822482eb407b248a938a68b9c701b0f1673b59b07346b558"
+    },
+    {
+      "path": "V4_2_EXISTING_UI_BACKEND_ONLY_CONSOLIDATED_ARCHITECTURE.md",
+      "bytes": 407736,
+      "sha256": "5665d8a8096c1e7ada7d29138a0f76dec761bc2c176ee90c856eeca9ee430462"
+    },
+    {
+      "path": "existing_ui_reference/ASSET_SHA256.json",
+      "bytes": 490,
+      "sha256": "fc48c0768492f6c2959a675de256935850814044f798e63dfd7ffd00396a1672"
+    },
+    {
+      "path": "existing_ui_reference/README.md",
+      "bytes": 616,
+      "sha256": "1426ac31aac4f81efc8f84c271b8a1b96b25ed6299b3c2a99732e7e92e9a73d1"
+    },
+    {
+      "path": "existing_ui_reference/index.html",
+      "bytes": 6869,
+      "sha256": "ec90cc50d0736b54abda0a2ead19ae8f1156f8356543f3759b68164e9fa81033"
+    },
+    {
+      "path": "existing_ui_reference/script.js",
+      "bytes": 22499,
+      "sha256": "f31f4d08784f63be678d6f58d12709b15ddf0d69ecde3ad2c1521765f09b05ea"
+    },
+    {
+      "path": "existing_ui_reference/style.css",
+      "bytes": 13709,
+      "sha256": "4c3796c173fcb07ee0598adc4ceaba60519ae8e3a0f63a1e5349c7f5ede5077d"
+    }
+  ],
+  "unresolved_current_UI_issues": []
+}

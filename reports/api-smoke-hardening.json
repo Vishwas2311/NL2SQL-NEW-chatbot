@@ -1,0 +1,28 @@
+{
+  "transport": "actual loopback HTTP",
+  "installation": "clean Python 3.13.16 core-only, no Oracle driver",
+  "health": 200,
+  "readiness": 200,
+  "components": {
+    "process": "alive",
+    "database": "available",
+    "metadata": "pinned_catalog",
+    "index": "compatible",
+    "model": "disabled",
+    "embedding": "disabled"
+  },
+  "chat": 200,
+  "rows": [
+    {
+      "region": "Demo North",
+      "loan_exposure": "175000.50"
+    },
+    {
+      "region": "Demo South",
+      "loan_exposure": "75000.00"
+    }
+  ],
+  "owned_session_list_load_delete": "passed",
+  "credentials_logged": false,
+  "frontend_opened_or_modified": false
+}

@@ -1,0 +1,12 @@
+{
+  "data_dir": "restricted/runtime",
+  "metadata_root": "restricted/metadata",
+  "query_backend": "oracle",
+  "model_mode": "disabled",
+  "embedding_mode": "disabled",
+  "data_classification": "restricted",
+  "pool_size": 4,
+  "request_timeout_seconds": 15,
+  "query_timeout_seconds": 3,
+  "metadata_startup_reconcile": true
+}

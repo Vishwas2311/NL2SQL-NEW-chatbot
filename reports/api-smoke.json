@@ -1,0 +1,12 @@
+{
+  "database": "synthetic-v2",
+  "transport": "real_loopback_http",
+  "checks": {
+    "health": true,
+    "compatible_auth_error": true,
+    "chat_known_results": true,
+    "owned_history_and_cross_user_denial": true,
+    "delete_204": true
+  },
+  "server_stopped": true
+}
