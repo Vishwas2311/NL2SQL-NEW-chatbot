@@ -1,12 +1,12 @@
 # EWS V4.3 metadata-driven NL-to-SQL backend
 
 Latest local verification: **328 tests, 89% coverage and all quality gates passed**, including the one-command setup follow-up.
-See the [complete report](reports/DEVELOPMENT_HARDENING_REPORT.md) and
-[configuration/handoff runbook](DEVELOPMENT_HARDENING_RUNBOOK.md). Enterprise release gates remain open.
+See the [configuration/handoff runbook](DEVELOPMENT_HARDENING_RUNBOOK.md).
+Company Oracle, corporate identity, real inference and embeddings still need office qualification.
 
 The V4.3 upgrade adds dictionary discovery, signed metadata approval, atomic runtime bundles,
-drift impacts and optional external refresh. Start with [implementation status](SCHEMA_IMPLEMENTATION_REPORT.md)
-and [tested operations](ORACLE_BOOTSTRAP_RUNBOOK.md). Existing synthetic startup below remains supported.
+drift impacts and optional external refresh. Start with [tested operations](ORACLE_BOOTSTRAP_RUNBOOK.md).
+Existing synthetic startup below remains supported.
 
 Working synthetic-first FastAPI backend. The supplied HTML/CSS/JS remains untouched and is not
 served or integrated. This implementation is a local development baseline, not an enterprise release.
@@ -121,7 +121,7 @@ Source layout:
 - `metadata/synthetic/`: fictional catalog; `tests/`: unit/security/contract/E2E fixtures.
 - `scripts/`, `reports/`, `docs/`: checks, measured evidence and operating instructions.
 
-See IMPLEMENTATION_PROGRESS.md, TEST_RESULTS.md and OPEN_BLOCKERS.md for actual scope and evidence.
+See the retained operating guides for supported configuration and office qualification, and `reports/` for measured local evidence.
 
 To combine the available project source, tests, configuration, documentation and UI reference files
 into one text file, run `python export_project_to_txt.py` from this folder. It creates

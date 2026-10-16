@@ -60,3 +60,9 @@ models/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Office handoff keeps only setup and operating guides in the repository.
+*.md
+!/README.md
+!/DEVELOPMENT_HARDENING_RUNBOOK.md
+!/ORACLE_BOOTSTRAP_RUNBOOK.md
