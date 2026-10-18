@@ -1,7 +1,7 @@
 """Typed relational lowering and deterministic SQLGlot AST rendering."""
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Literal
 
 import sqlglot
@@ -168,7 +168,9 @@ class Compiler:
             if not isinstance(value, (str, int)):
                 raise Failure("INVALID_FILTER", "The filter value is invalid.")
             if node.value.kind == "decimal":
-                raw = Decimal(str(value)) * scale
+                # Certified values have up to 38 digits, plus a scale of up to 10**9.
+                with localcontext(prec=80):
+                    raw = Decimal(str(value)) * scale
                 if source_kind == "decimal":
                     value = format(raw, "f")
                 else:

@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import time
 from collections.abc import Callable
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import sqlglot
 from sqlglot import exp
@@ -75,7 +75,8 @@ def _expected_filter(node: Predicate | FilterGroup, catalog: Catalog, having: bo
     if isinstance(value, tuple):
         values = tuple(value)
     elif node.value.kind == "decimal":
-        raw = Decimal(str(value)) * scale
+        with localcontext(prec=80):
+            raw = Decimal(str(value)) * scale
         values = (format(raw, "f") if kind == "decimal" else int(raw),)
     else:
         values = (value,)

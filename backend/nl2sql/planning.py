@@ -123,7 +123,7 @@ def resolve_period(
     if isinstance(period, DateRange):
         if (
             period.start < catalog.effective_from
-            or period.end_exclusive > catalog.effective_to + timedelta(days=1)
+            or period.end_exclusive - timedelta(days=1) > catalog.effective_to
         ):
             raise Failure("TIME_UNSUPPORTED", "This reporting range is outside catalog coverage.")
         if view.time_kind == "snapshot" and "reporting_date" not in plan.dimensions:

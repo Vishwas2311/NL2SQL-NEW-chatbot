@@ -1,10 +1,30 @@
-# Development hardening runbook
+# Setup and configuration
 
 This is a synthetic Windows/Python 3.13 development build. Company Oracle, corporate identity,
 real inference, installed embedding runtimes and native FAISS require separate qualification.
-The original numbered design documents and UI assets are preserved.
+Original numbered designs are consolidated in [Design reference](DESIGN_REFERENCE.md). UI assets are preserved.
 
-## Install and validate
+## Quick synthetic setup
+
+From the project root, use Python 3.13 (tested baseline 3.13.16):
+
+```powershell
+python setup_env.py
+.\.venv\Scripts\python -m nl2sql init-demo
+.\.venv\Scripts\python -m nl2sql serve --env-file .env
+```
+
+`setup_env.py` installs the pinned core dependencies and project, creates `.env`
+from its example if absent, and preserves existing settings. `init-demo` creates
+fictional data and random credentials in ignored `.local/` storage. It refuses
+to overwrite an existing database; skip it for an initialized demo or select a
+fresh `--settings` path. Protect local credentials with OS account permissions.
+
+The service binds to `127.0.0.1:8000`. The supplied browser UI is a frozen
+reference and is not served or integrated. See [Operations](OPERATIONS.md) for
+requests, metadata lifecycle, and troubleshooting.
+
+## Manual install and validation
 
 From this project's root in PowerShell:
 
@@ -24,6 +44,35 @@ Initialization refuses to replace existing data. Select a fresh directory for ea
 Credentials are randomly generated into its ignored directory. Never copy those credentials into
 examples, reports or source control. The sanitized office template is config/office.example.json;
 it deliberately cannot start an office service without approved resources and trust anchors.
+
+## Optional Strix security assessment
+
+Strix is separate security tooling, not an application dependency. Its nine upstream agent skills
+are installed under the local Codex skills directory. The isolated CLI is pinned to `strix-agent==1.7.0`
+under `~/.codex/tools/strix-1.7.0`; another installation can be selected with `--strix PATH`.
+Follow the [Strix provider setup](https://docs.strix.ai/llm-providers/overview.md) for an authorized
+model connection. Hosted inference sends source context to that provider. Keep credentials in
+the local Strix configuration or process environment, never in this repository.
+
+```powershell
+# Inspect the sanitized snapshot without starting a scan:
+.\.venv\Scripts\python.exe -m scripts.strix_scan --prepare-only
+# Docker and an authorized Strix model connection must be ready:
+.\.venv\Scripts\python.exe -m scripts.strix_scan --max-budget 10
+# Equivalent optional hook; this does not run on ordinary commits:
+.\.venv\Scripts\python.exe -m pre_commit run strix-security --hook-stage manual
+```
+
+The hook scans the full source snapshot with a USD 10 model-spend cap by default. It reuses the
+exporter's exclusions for credentials, databases, private metadata and generated exports. Strix
+can modify its disposable copy; the working project is not mounted into its sandbox. Synthetic
+data only; company Oracle, real application providers and third-party targets are out of scope.
+Snapshots, instructions and reports stay under ignored `.local/strix/`. A successful process exit
+must also have one `run.json` marked `completed`; read the report and usage for partial coverage or
+early budget warnings before accepting its results. Tests and lint checks are separate gates.
+A provider rejection leaves the assessment incomplete; retain its logs and coverage gaps rather
+than treating an empty findings list as a pass. Subscription scans consume plan allowance; the
+dollar cap applies to metered model costs.
 
 ## Configuration
 

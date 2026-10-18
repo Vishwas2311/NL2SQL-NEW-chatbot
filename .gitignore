@@ -2,6 +2,7 @@
 venv/
 env/
 .local/
+strix_runs/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -61,8 +62,4 @@ models/
 Thumbs.db
 Desktop.ini
 
-# Office handoff keeps only setup and operating guides in the repository.
-*.md
-!/README.md
-!/DEVELOPMENT_HARDENING_RUNBOOK.md
-!/ORACLE_BOOTSTRAP_RUNBOOK.md
+# Maintained documentation lives in docs/; local archives stay under .local/.

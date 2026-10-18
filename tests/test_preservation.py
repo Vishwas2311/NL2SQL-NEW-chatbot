@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def test_original_ui_reference_hashes():
-    root = Path("NL2SQL_V4_2_EXISTING_UI_BACKEND_ONLY_FULL_DOCUMENTATION")
+    root = Path("UI")
     manifest = next(root.glob("*/existing_ui_reference/ASSET_SHA256.json"))
     recorded = json.loads(manifest.read_text())
     for filename, evidence in recorded.items():

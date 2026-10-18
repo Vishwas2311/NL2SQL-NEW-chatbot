@@ -31,6 +31,12 @@ def _check_integer_binds(values: Iterable[Bind]) -> None:
         raise Failure("NUMERIC_RANGE", "This value is outside the configured numeric range.")
 
 
+def _check_deadline(deadline: float) -> None:
+    """Short queries may finish without invoking SQLite's periodic progress callback."""
+    if time.time() >= deadline:
+        raise Failure("QUERY_TIMEOUT", "The query timed out.", 504)
+
+
 class SQLiteDatabase:
     """Preopened read-only connections, distinct from session-write storage."""
 
@@ -105,8 +111,7 @@ class SQLiteDatabase:
                 self.validator.verify(capability, principal)
                 connection.set_authorizer(authorizer)
                 connection.set_progress_handler(lambda: int(time.time() >= end), 100)
-                if time.time() >= end:
-                    raise Failure("QUERY_TIMEOUT", "The query timed out.", 504)
+                _check_deadline(end)
                 self.execute_count += 1
                 cursor = connection.execute(query.sql, parameters)
                 rows = cursor.fetchmany(query.validated_plan.plan.limit + 1)
@@ -157,14 +162,19 @@ class SQLiteDatabase:
         sql, parameters = entity_query(self.validator.catalog, entity, phrase, principal, "sqlite")
         _check_integer_binds(parameters.values())
         end = min(
-            deadline or time.time() + self.settings.query_timeout_seconds,
+            deadline if deadline is not None else float("inf"),
             time.time() + self.settings.query_timeout_seconds,
         )
+        _check_deadline(end)
         try:
             with self.connection(end - time.time()) as connection:
+                _check_deadline(end)
                 connection.set_progress_handler(lambda: int(time.time() >= end), 100)
                 matches = [tuple(row) for row in connection.execute(sql, parameters).fetchmany(2)]
+                _check_deadline(end)
         except sqlite3.Error as error:
+            if time.time() >= end:
+                raise Failure("QUERY_TIMEOUT", "The query timed out.", 504) from error
             raise Failure(
                 "DB_UNAVAILABLE", "Entity lookup is temporarily unavailable.", 503
             ) from error

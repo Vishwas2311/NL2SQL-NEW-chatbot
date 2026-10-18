@@ -17,3 +17,10 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
+      - id: strix-security
+        name: Strix full application security assessment (manual)
+        entry: python -m scripts.strix_scan
+        language: system
+        stages: [manual]
+        pass_filenames: false
+        always_run: true

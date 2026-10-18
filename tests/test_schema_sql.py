@@ -1,7 +1,7 @@
 """Owner-qualified Oracle AST and exact decimal contracts use fictional driver fixtures."""
 
 import time
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import oracledb
 import pytest
@@ -48,6 +48,50 @@ def oracle_catalog(settings):
     return catalog.model_copy(
         update={"tables": tables, "metrics": metrics, "classification": "restricted"}
     )
+
+
+@pytest.mark.parametrize("precision", [6, 28])
+@pytest.mark.parametrize("scale", [1, 1_000_000_000])
+def test_decimal_threshold_keeps_all_digits_in_compiler_and_validator(settings, precision, scale):
+    catalog = oracle_catalog(settings)
+    catalog = catalog.model_copy(
+        update={
+            "metrics": tuple(
+                metric.model_copy(update={"scale": scale})
+                if metric.id == "loan_exposure"
+                else metric
+                for metric in catalog.metrics
+            )
+        }
+    )
+    value = "12345678901234567890123456789012.123456"
+    expected = value if scale == 1 else "12345678901234567890123456789012123456000.000000"
+    principal = settings.principals[0]
+    compiler = Compiler(catalog)
+    plan = QueryPlan(
+        catalog_version=catalog.version,
+        view_id="loan_snapshot",
+        metrics=("loan_exposure",),
+        having=Predicate(
+            field="loan_exposure", op="gt", value=TypedValue(kind="decimal", value=value)
+        ),
+    )
+    with localcontext() as context:
+        context.prec = precision
+        query = compiler.compile(compiler.validator.validate(plan, principal), principal, "oracle")
+        assert expected in dict(query.binds).values()
+        validator = SQLValidator(catalog, b"k" * 32)
+        validator.validate(query, principal, time.time() + 5)
+        rounded = query.model_copy(
+            update={
+                "binds": tuple(
+                    (key, "12345678901234567890123456790000") if bound == expected else (key, bound)
+                    for key, bound in query.binds
+                )
+            }
+        )
+        with pytest.raises(Failure):
+            validator.validate(rounded, principal, time.time() + 5)
 
 
 def test_oracle_exact_names_major_units_decimal_binds_and_independent_ast(settings, resources):

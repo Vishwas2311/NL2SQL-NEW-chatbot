@@ -1,7 +1,7 @@
 """Catalog publication, graph, resolver and persistence invariants."""
 
 import sqlite3
-from contextlib import closing
+from contextlib import closing, contextmanager
 
 import pytest
 from nl2sql.catalog import CatalogStore, JoinGraph, digest, validate_catalog
@@ -100,6 +100,46 @@ def test_entity_exact_alias_ambiguity_injection_and_scope(resources):
             resources.database.resolve_customer(phrase, principal)
     with pytest.raises(Failure):
         resources.database.resolve_customer("C003", resources.auth.principals["north_analyst"])
+
+
+@pytest.mark.parametrize("phase", ["before_pool", "after_pool", "during_query", "after_query"])
+def test_entity_lookup_enforces_deadline_at_each_boundary(resources, monkeypatch, phase):
+    clock = [2.0 if phase == "before_pool" else 0.0]
+    calls = []
+    monkeypatch.setattr("nl2sql.database.time.time", lambda: clock[0])
+
+    class Connection:
+        def set_progress_handler(self, *_):
+            pass
+
+        def execute(self, *_):
+            calls.append("execute")
+            clock[0] = 2.0
+            if phase == "during_query":
+                raise sqlite3.OperationalError("interrupted")
+            return self
+
+        def fetchmany(self, _):
+            return [("C001",)]
+
+    @contextmanager
+    def connection(_):
+        calls.append("acquire")
+        if phase == "after_pool":
+            clock[0] = 2.0
+        yield Connection()
+
+    monkeypatch.setattr(resources.database, "connection", connection)
+    with pytest.raises(Failure) as error:
+        resources.database.resolve_entity(
+            resources.database.validator.catalog.entities[0],
+            "Fable",
+            resources.auth.principals["analyst"],
+            deadline=1.0,
+        )
+    assert error.value.code == "QUERY_TIMEOUT"
+    assert ("acquire" in calls) == (phase != "before_pool")
+    assert ("execute" in calls) == (phase in {"during_query", "after_query"})
 
 
 def test_session_optimistic_conflict_and_restart(resources, settings):

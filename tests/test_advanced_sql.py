@@ -86,6 +86,14 @@ def test_snapshot_range_retains_each_reporting_date(resources):
     )
 
 
+def test_range_coverage_accepts_open_ended_catalog_without_date_overflow(resources):
+    catalog = resources.service.store.snapshot().model_copy(update={"effective_to": date.max})
+    plan = payment_plan(resources)
+    principal = resources.auth.principals["analyst"]
+    validated = PlanValidator(catalog).validate(plan, principal)
+    assert validated.plan.period == plan.period
+
+
 @pytest.mark.parametrize("method", ["row_number", "dense_rank"])
 def test_partitioned_aggregate_ranking(resources, method):
     plan = plan_for(
