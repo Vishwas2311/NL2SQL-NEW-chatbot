@@ -1,0 +1,10 @@
+{
+  "scope": "Isolated local Redis application account",
+  "checks": {
+    "other_namespace_denied": true,
+    "configuration_access_denied": true,
+    "anonymous_access_denied": true,
+    "missing_expiry_permission_rejected_without_probe_key_leak": true
+  },
+  "generated_password_found_in_source": false
+}

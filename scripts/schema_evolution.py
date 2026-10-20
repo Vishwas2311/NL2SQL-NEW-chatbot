@@ -10,10 +10,10 @@ import tracemalloc
 from contextlib import closing
 from pathlib import Path
 
-from nl2sql.config import Settings
-from nl2sql.managed_resources import build_managed_resources
-from nl2sql.metadata_cli import MetadataOptions, run_metadata
-from nl2sql.metadata_store import MetadataControl
+from nl2sql.bootstrap.managed import build_managed_resources
+from nl2sql.cli.metadata import MetadataOptions, run_metadata
+from nl2sql.domain.metadata import MetadataControl
+from nl2sql.settings import Settings
 from pydantic import TypeAdapter
 
 

@@ -1,5 +1,9 @@
 # Current architecture and limits
 
+See the [application architecture diagram](ARCHITECTURE_DIAGRAM.md) for the
+source-verified Azure-style overview, scalable SVG, high-resolution PNG and
+editable draw.io source. Optional office integrations are explicitly marked.
+
 Synthetic-first FastAPI backend with immutable Pydantic contracts, application
 services, and typed adapters. Authentication and current server-side grants
 scope retrieval, typed planning, deterministic SQL compilation, independent
@@ -9,7 +13,9 @@ output cannot grant permissions. Raw SQL fallback remains disabled.
 One runtime bundle pins the approved catalog, graph, retriever, compiler,
 validator, policy, and execution resources for each request. Money uses exact
 minor units or declared Oracle precision/scale and returns Decimal strings.
-The supplied HTML/CSS/JavaScript UI and both reference copies remain frozen.
+The supplied HTML/CSS/JavaScript UI remains frozen in one canonical reference copy.
+On 2026-10-20, the user requested deletion of the byte-identical duplicate under
+frontend-reference/. Its unique test was moved unchanged beside the retained assets.
 
 ## API and source layout
 
@@ -19,14 +25,110 @@ Requests use synchronous JSON. Responses do not expose SQL, schema, or binds.
 Speech returns an authenticated 501; export, result pagination, and cancellation
 jobs have no implemented product surface.
 
-- `backend/nl2sql/`: domain, catalog, retrieval, planning, compiler, security,
-  auth, sessions, API, provider adapters, and metadata lifecycle.
+- `backend/nl2sql/domain/`: immutable business, physical, session and lifecycle contracts.
+- `backend/nl2sql/application/`: chat/metadata use cases, typed ports, planning,
+  deterministic SQL compilation and independent validation.
+- `backend/nl2sql/infrastructure/`: authentication, databases, sessions, metadata
+  repositories, retrieval, inference and Redis adapters.
+- `backend/nl2sql/api/`: FastAPI routes, schemas, middleware and compatibility mappings.
+- `backend/nl2sql/bootstrap/`: resource composition, runtime bundles and worker factories.
+- `backend/nl2sql/cli/`: administrative and service entry points.
+- `backend/nl2sql/evaluation/`: fictional fixtures and evaluation harnesses.
 - `metadata/synthetic/`: fictional approved catalogs and fixtures.
-- `tests/`: security, SQL goldens, adapter, API-contract, and lifecycle tests.
+- `tests/`: unit, contract, integration, security, evaluation and tooling groups.
 - `scripts/`: mandatory checks and reproducible synthetic benchmarks.
-- `reports/`: machine-readable measurements; historical Markdown reports were
-  removed during documentation cleanup.
-- `frontend-reference/` and `UI/*/existing_ui_reference/`: frozen UI.
+- `reports/`: sanitized measurements and dated reviews; raw quality-console logs
+  and the duplicate dependency-audit report stay local and are excluded from Git.
+- `UI/*/existing_ui_reference/`: sole frozen UI reference, original hash manifest,
+  and retained JavaScript contract test.
+
+See [Code structure](STRUCTURE.md) for ownership and enforced dependency rules.
+
+## VM concurrency and Redis
+
+The user confirmed a VM with concurrent users and an existing Redis service on
+2026-10-20. This supersedes the earlier single-process recommendation. The office
+template now requires Redis and defaults to two API workers; the count and HTTP
+admission limit remain provisional until measured on the actual VM.
+
+RedisRateLimiter implements one atomic Lua rolling-minute decision using Redis's
+clock, a namespaced hash of tenant/subject, unique request members, and 60-second
+key expiry. It shares quotas across worker processes. Timeouts and connection
+counts are bounded, command retries are disabled, and Redis failure returns a safe
+503 without local fallback. Startup and readiness check Redis. Authentication and
+current permissions remain independent of Redis; no query results are cached.
+Both chat routes also acquire one atomic global/per-principal Redis lease around
+the complete chat use case. Defaults are eight active chats across workers and one
+per tenant/subject; these are provisional resource budgets, not user-capacity claims.
+Crashes leave a lease that expires after 300 seconds. Unique lease IDs prevent an
+expired request from releasing a newer request's slot. Normal and exceptional exits
+release their own slots. Lost/expired admission prevents a successful chat response.
+Rate admission and active admission are separate; even active-limit rejections
+consume the authenticated request-rate quota. Session reads do not occupy chat slots.
+Leases must outlast request and Redis I/O budgets. They do not forcibly terminate a
+hung driver or model call, and Redis loss/restart is not strict physical resource
+fencing. Drain API work before planned Redis maintenance and retain provider-side
+timeouts/pools. No heartbeat scheduler or background job system is introduced.
+Readiness verifies authentication, scripting and required sorted-set commands in
+an isolated, expiring probe key, rather than relying only on PING. The check-redis
+CLI uses the same adapter without opening Oracle, inference or application databases.
+The redis-py optional dependency is pinned in requirements-redis.lock and the
+development lock. The office VM Redis service is not installed or deployed here.
+An optional loopback-only Docker Compose service and generated least-privilege
+application/test ACLs support real local synthetic qualification. Generated .env
+and test credentials are ignored; they are not office secrets or deployment files.
+
+The supported `python -m nl2sql serve --workers N` launcher uses an importable
+application factory, so spawned workers independently load the same selected JSON,
+dotenv and process environment. Configuration rejects more than one worker with
+the memory limiter. HTTP connection/task admission is bounded per worker.
+The API remains loopback-bound for an approved same-VM reverse proxy; no proxy,
+corporate sign-in, TLS termination, UI hosting or deployment is performed here.
+
+Synthetic query data and durable sessions retain separate SQLite databases, and
+governed metadata retains its private transactional SQLite repository. All workers
+on one VM must share the same approved local paths; SQLite compare-and-swap and
+metadata publication leases protect cross-process changes. Network-share databases
+and multi-node operation remain unqualified. Redis does not resolve session-writer
+contention or establish business-query capacity. Per-worker pools, indexes and model
+clients consume resources independently; total database connections multiply by
+worker count and must be approved and load-tested.
+
+Single-process synthetic development still defaults to the memory limiter and
+does not require Redis. The real-server Redis suite uses only an explicit local
+NL2SQL_TEST_REDIS_URL and has a dedicated CI service. Contract fakes alone do not
+qualify Lua execution or VM Redis connectivity.
+Real local qualification now includes two spawned API worker processes serving
+HTTP, shared quotas, active leases and exact synthetic results with durable history.
+The supplied CI job runs these tests against a real standalone Redis service.
+
+Session routes delegate to application SessionService, rechecking current identity
+before and after persistence operations. Governed identity refresh observes new
+publications; a revocation during a history/list read blocks the response. Public
+titles are generic to avoid disclosing question text after grants change. Saved
+messages continue to redact when their authorization digest differs. History has
+a four-million-byte UTF-8 budget per conversation and a 200-message limit; reads
+reject oversized legacy histories before materializing their message payloads.
+Owner-bound deletion works after expiry. An explicit bounded purge-sessions CLI
+removes expired sessions and cascaded messages outside API workers. No automatic
+scheduler, backup purge or secure physical-erasure guarantee is implied.
+Session operations reject an already expired request deadline and bound SQLite
+writer waits to the remaining budget, so a free Python lock cannot admit a late write.
+Messages have a session/id index for ordered history reads and cascaded deletes;
+the index is created idempotently for existing synthetic stores at startup.
+
+Local backend operation does not establish a fully offline application: the frozen
+UI references public CSS/icon CDNs, provider settings permit explicitly approved
+network endpoints, and the office Oracle source is external to this laptop.
+Inference defaults disabled. Runtime data must use approved restricted storage
+outside cloud-synchronized source folders; actual sync settings and ACLs require
+office verification. The dated reports/application-architecture-review-2026-10-20.md
+records the earlier baseline. The 2026-10-21 follow-up adds real Redis connection
+qualification, active-chat admission, session response reauthorization, generic
+titles, byte budgets and bounded retention cleanup. Enterprise IAM, protected
+storage, backup policy and actual provider/VM qualification still remain open.
+See the [current quality review](../reports/redis-and-code-quality-review-2026-10-21.md)
+for the implemented fixes and remaining release gates.
 
 ## Implemented metadata contracts
 

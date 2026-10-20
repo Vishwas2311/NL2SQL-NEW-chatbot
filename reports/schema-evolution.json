@@ -1,12 +1,12 @@
 {
   "source": "fictional synthetic SQLite; no corporate connection",
-  "bootstrap_approve_publish_ms": 2001.542599999084,
-  "initial_bundle_build_ms": 1195.777500000986,
+  "bootstrap_approve_publish_ms": 2243.8137999997707,
+  "initial_bundle_build_ms": 1253.4109999996872,
   "questions": 30,
   "correct_results": 30,
-  "query_p50_ms": 136.7598500000895,
-  "query_p95_ms": 170.86030000064056,
-  "unchanged_refresh_ms": 72.78570000016771,
+  "query_p50_ms": 149.62629999990895,
+  "query_p95_ms": 174.15319999963685,
+  "unchanged_refresh_ms": 99.27030000108061,
   "row_change_triggers_rebuild": false,
   "row_change_result": [
     {
@@ -26,5 +26,5 @@
   "actual_oracle": "not run",
   "actual_gemma": "not run",
   "actual_faiss": "not installed or run",
-  "peak_python_traced_bytes": 2550848
+  "peak_python_traced_bytes": 2538277
 }

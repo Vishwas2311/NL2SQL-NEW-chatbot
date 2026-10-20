@@ -20,6 +20,8 @@ node_modules/
 .env*
 !.env.example
 reports/*.xml
+reports/quality-*.txt
+reports/dependency-audit.json
 full_project_export.txt
 full_project_export_*.txt
 

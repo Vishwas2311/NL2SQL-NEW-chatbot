@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from nl2sql.load_evaluation import evaluate_load
+from nl2sql.evaluation.load import evaluate_load
 
 
 def main() -> None:

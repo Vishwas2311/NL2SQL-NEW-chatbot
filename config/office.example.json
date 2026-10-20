@@ -6,6 +6,9 @@
   "embedding_mode": "disabled",
   "data_classification": "restricted",
   "pool_size": 4,
+  "rate_limit_backend": "redis",
+  "api_workers": 2,
+  "http_concurrency_limit": 64,
   "request_timeout_seconds": 15,
   "query_timeout_seconds": 3,
   "metadata_startup_reconcile": true

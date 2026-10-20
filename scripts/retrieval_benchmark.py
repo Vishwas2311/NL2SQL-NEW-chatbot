@@ -4,10 +4,10 @@ import json
 import tempfile
 from pathlib import Path
 
-from nl2sql.domain import Principal
-from nl2sql.retrieval_evaluation import evaluate_retrieval
-from nl2sql.retrieval_experiment import compare_retrieval
-from nl2sql.synthetic import ALL_METRICS, synthetic_catalog
+from nl2sql.domain.models import Principal
+from nl2sql.evaluation.experiments import compare_retrieval
+from nl2sql.evaluation.retrieval import evaluate_retrieval
+from nl2sql.evaluation.synthetic import ALL_METRICS, synthetic_catalog
 
 
 def main() -> None:

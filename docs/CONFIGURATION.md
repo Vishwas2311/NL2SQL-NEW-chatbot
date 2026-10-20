@@ -4,6 +4,103 @@ This is a synthetic Windows/Python 3.13 development build. Company Oracle, corpo
 real inference, installed embedding runtimes and native FAISS require separate qualification.
 Original numbered designs are consolidated in [Design reference](DESIGN_REFERENCE.md). UI assets are preserved.
 
+The sole UI reference is `UI/*/existing_ui_reference/`; the byte-identical
+`frontend-reference/` copy was removed at the user's request on 2026-10-20.
+The retained HTML, JavaScript and CSS still match the original SHA256 manifest.
+No UI integration or content changes were made.
+
+Single-process synthetic development defaults to the memory limiter. The concurrent
+VM profile requires the implemented Redis adapter; worker count and capacity still
+need qualification on the target VM. For restricted office use, explicitly select
+non-synchronized, company-approved `data_dir` and `metadata_root` paths; the relative
+development defaults do not enforce ACLs or prevent cloud synchronization.
+
+## Concurrent VM configuration
+
+Install the pinned optional Redis client with the chosen Python environment:
+
+```text
+python -m pip install -r requirements-redis.lock
+python -m pip install --no-deps -e .
+```
+
+The office Redis service must be supplied by the VM owner. The optional local
+synthetic Docker service is described in OPERATIONS.md; it is not an office deployment.
+The VM OS and expected simultaneous
+user count have not been supplied; the factory launcher supports process spawning
+without assuming Gunicorn or Docker. Use `.venv/Scripts/python` on Windows or
+`.venv/bin/python` on Linux if the environment is not activated.
+
+Select the protected settings file and `--env-file config/vm.env.example` when
+serving. That template selects Redis and two workers, but deliberately contains no
+Redis credential. Inject `NL2SQL_REDIS_URL` through approved process-environment
+secret management. A loopback URL uses redis://; a non-loopback host must use
+rediss:// with verified TLS. URL query overrides and fragments are rejected.
+URL credentials must be percent-encoded by the secret provisioner. Redis Cluster
+and Sentinel discovery are not implemented by this standalone-service adapter.
+
+| Setting | Default / behavior |
+|---|---|
+| rate_limit_backend | memory for development; redis in the VM template |
+| redis_url | SecretStr; required with Redis; no committed real credentials |
+| redis_key_prefix | ews:nl2sql; use one deployment-specific prefix shared by its workers |
+| redis_timeout_seconds | 0.5 seconds each for connect and command I/O; no command retry |
+| redis_max_connections | 16 per API worker |
+| redis_ca_bundle | Optional approved PEM CA file; allowed only with rediss://; certificate and hostname verification remain required |
+| requests_per_minute | 60 per authenticated tenant/subject across the deployment |
+| max_concurrent_chats | 8 active chat use cases across all workers |
+| max_concurrent_chats_per_principal | 1 active chat per authenticated tenant/subject |
+| admission_lease_seconds | 300; must exceed request_timeout_seconds plus twice redis_timeout_seconds plus 5 seconds |
+| api_workers | 1 for development; VM template 2; allowed 1..16 |
+| http_concurrency_limit | 64 accepted connections/tasks per worker; tune with HTTP load |
+| max_session_bytes | 4,000,000 UTF-8 bytes of serialized messages per conversation |
+
+Each setting maps to its upper-case NL2SQL_ environment name. Shared limits apply
+only to workers using the same Redis service/database and deployment prefix. Grant
+changes do not reset a subject's rate counter or active slot. Both chat routes hold
+slots through planning, execution and persistence; session routes use rate quotas
+without taking chat slots. Active-limit rejections still count toward the rate quota.
+CHAT_IN_PROGRESS and CHAT_CAPACITY return 429. Redis failure returns 503; an expired
+lease on completed work returns ADMISSION_EXPIRED/503. A lease is crash recovery,
+not forced cancellation or a guarantee against Redis restart/eviction resetting state.
+
+The CLI accepts `--workers N`; more than one worker with the memory limiter rejects
+configuration. Use the provided CLI rather than specifying a different worker count
+in an unrelated external Uvicorn command. Each worker loads the same explicitly
+selected settings/environment paths through bootstrap.factory:create_configured_app.
+CLI worker/metadata-root overrides are passed to child processes through process
+environment. No plaintext settings or secrets are serialized into command arguments.
+
+All workers on one VM must share the same approved local `data_dir`/`metadata_root`
+and Redis namespace. Keep SQLite databases on a local volume, not an SMB/NFS share.
+Database and Redis pools, in-memory indexes, and model clients are per process:
+total configured query connections are approximately workers times pool size.
+Existing metadata build limits, including 128 principals per governed bundle and
+128 distinct retrieval grant partitions, still apply. Redis and extra workers do
+not increase those limits; larger deployments need a measured capacity review.
+Oracle has separate NL2SQL_QUERY_POOL_MAX settings; verify its actual aggregate
+limit with the DBA rather than assuming the generic SQLite pool setting controls it.
+
+Redis failure blocks startup/readiness or returns a safe 503 on protected requests.
+It never falls back to process-local counters. Quota exhaustion returns the existing
+429 error contract. Liveness remains available. Redis contains only expiring quota
+and active-lease state; no results, raw identity values, grants, credentials or metadata approvals are
+stored there. Restart/eviction can reset quota history, so the Redis owner must
+provide appropriate isolation, memory headroom and a noeviction policy. Permission
+enforcement still runs independently on every request.
+
+Redis ACLs must allow the deployment's rate/chat/probe key prefix and the script's EVAL, TIME,
+ZREMRANGEBYSCORE, ZCARD, ZADD, ZSCORE, ZREM and PEXPIRE commands, plus PING and the client's approved
+connection/authentication/database-selection commands. They need no CONFIG, FLUSHDB,
+business-data or metadata-publication access. Keep the listener private; the browser
+must never connect directly to Redis. See the official [Redis security guidance](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)
+and [redis-py production guidance](https://redis.io/docs/latest/develop/clients/redis-py/produsage/).
+
+An approved private CA can be supplied with NL2SQL_REDIS_CA_BUNDLE. Certificate and
+hostname checks are explicit for TLS connections; no certificate-bypass option is
+supported. Corporate sign-in, TLS ingress,
+proxy/UI hosting, high availability and actual VM capacity remain separate gates.
+
 ## Quick synthetic setup
 
 From the project root, use Python 3.13 (tested baseline 3.13.16):
@@ -83,6 +180,25 @@ publishing or monitoring. Supply Oracle/query/discovery credentials and metadata
 process-environment injection; their existing separate settings classes never search dotenv files.
 Corporate secret managers can inject those variables without an application dependency or secret file.
 Validation prints only validity and provider modes; invalid configuration never prints field values.
+
+The root `.env.example` lists safe local defaults and the LLM, Redis, Oracle query,
+Oracle discovery and optional embedding configuration references. `setup_env.py`
+preserves an existing `.env`; template updates do not migrate or replace local secrets.
+LLM APIs require the full chat-completions URL, exact provider model ID and JSON
+array of approved hosts, plus `NL2SQL_MODEL_KEY` when bearer authentication is required.
+Legacy `LLM_URL`, `LLM_KEY` and `BM_DB_*` names are not aliases for these settings.
+
+For the VM, copy `config/vm.env.example` into a protected local file, add the approved
+model settings from `.env.example`, and select that file with the office settings JSON.
+Only one application dotenv is selected; files are not merged automatically. The
+development template explicitly selects synthetic SQLite and must not override the
+office Oracle configuration unchanged. Oracle sections in `.env.example` are commented
+**process-environment references**: keep them commented in application dotenv files.
+Their separate settings loaders do not read `--env-file`; uncommenting their account
+variables there causes unknown-setting validation errors. Inject them into the process
+through the approved launcher/secret manager instead. Approval flags remain false in
+examples and attest existing organizational approvals, rather than creating permission.
+The Redis Compose YAML starts only local Redis; it does not configure the separate API.
 
 Model fields: `model_mode`, `model_name`, `model_endpoint`, `approved_model_hosts`, `model_key`,
 `model_output_mode`, `model_timeout_seconds`, `model_retries`, `model_max_tokens`,

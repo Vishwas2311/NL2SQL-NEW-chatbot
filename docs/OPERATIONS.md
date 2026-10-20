@@ -5,6 +5,127 @@ Corporate commands are implemented, parser/authorization/dictionary-contract tes
 against Oracle**. They require organizational approval, credentials and reviewed mappings first.
 No command in this document authorizes a company connection or model download.
 
+The concurrent VM profile uses the existing approved Redis service for shared
+rolling-minute request quotas, global/per-principal active-chat leases and an
+importable API worker factory. Single-process
+synthetic development retains its memory limiter. Retained UI assets live only
+under `UI/*/existing_ui_reference/`, with their original hash manifest and unchanged
+JavaScript contract test. No UI integration or office service deployment is performed.
+
+Keep restricted runtime databases, credentials, metadata and backups outside
+cloud-synchronized source folders and on an approved local volume. A private
+marker or Git ignore rule does not enforce Windows access permissions or disable
+cloud sync. Verify these properties on the office machine before restricted use.
+
+## Concurrent workers and Redis
+
+Follow CONFIGURATION.md to install requirements-redis.lock and provision the Redis
+URL through approved secret injection. The examples below describe prepared
+commands, not approval to connect to office Oracle or deploy the application.
+
+With an initialized synthetic settings file and an approved local test Redis:
+
+```text
+python -m nl2sql serve --settings .local/settings.json --env-file config/vm.env.example
+```
+
+The VM template defaults to two workers. `--workers N` can override it after memory,
+model and database capacity review. Keep the development .env file out of the VM
+command: it explicitly selects a single-process memory limiter and environment
+values override JSON settings. Both files are opt-in; nothing is implicitly loaded.
+
+Use an approved same-VM reverse proxy for user-facing HTTPS, corporate sign-in and
+routing to the loopback API. Do not expose the Redis port to users or change the
+immutable UI assets as part of this backend change. Actual ingress/deployment setup
+depends on the VM OS and corporate platform and has not been installed here.
+
+Probe `/health` for process liveness and `/api/v1/health/ready` for database plus
+Redis readiness. The authenticated components route also reports the selected
+rate_limiter backend. If Redis is unavailable, protected requests receive
+RATE_LIMIT_UNAVAILABLE/503 and no process-local fallback occurs; quota exhaustion
+receives RATE_LIMIT/429. Inspect sanitized status codes, Redis availability/ACLs,
+connection limits and TLS trust without printing the Redis URL or credentials.
+Restart the API after credential/configuration rotation; no live client-rotation
+mechanism is claimed. Redis restart resets transient quotas, not durable grants.
+
+Each API worker owns its pools/indexes/clients. Keep all workers pointed at the
+same local session/metadata repositories and Redis deployment prefix. Monitor
+aggregate Oracle connections, worker RAM, Redis latency/memory and session queue
+time. Shared Redis quotas do not remove SQLite write contention; qualify sustained
+HTTP load before increasing worker/user counts. Multi-node SQLite/HA is not qualified.
+
+## Redis verification
+
+### Reproducible local synthetic connection
+
+Docker Desktop is optional and used only for this local verification. Install the
+pinned Redis client first. From a fresh checkout, prepare random local credentials
+and separate least-privilege application/test ACLs, then start the isolated service:
+
+```text
+python scripts/redis_local.py
+docker compose -f config/redis.local.compose.yaml up -d
+python -m nl2sql check-redis --env-file .local/redis/local.env
+```
+
+The service binds only 127.0.0.1:6380, uses Redis 8.2.10-alpine, disables the default
+user, and limits memory with noeviction. It stores transient admission state only;
+disk snapshots/AOF are disabled for this synthetic service. The application account
+cannot read test keys or run CONFIG/FLUSHDB. The test account has its own key prefix
+and limited inspection/cleanup commands. Credentials are never command arguments.
+Generated files remain under ignored .local/redis/. Preparation copies local.env
+to .env only when .env is absent; existing settings and passwords are never replaced.
+Keep all these synthetic files out of office secret provisioning and source control.
+
+check-redis validates Redis authentication and scripting/sorted-set permissions,
+without starting application database or model resources. Output omits the URL and
+credentials. It uses selected settings/dotenv/process-environment precedence.
+
+For the existing initialized synthetic demo, serve with:
+
+```text
+python -m nl2sql serve --settings .local/settings.json --env-file .local/redis/local.env
+```
+
+For a fresh demo initialize once before serving; initialization refuses replacement:
+
+```text
+python -m nl2sql init-demo --settings .local/redis-demo/settings.json --catalog .local/redis-demo/catalog.json
+python -m nl2sql serve --settings .local/redis-demo/settings.json --env-file .local/redis/local.env
+```
+
+Run every mandatory check with the explicit isolated test identity, including the
+real Lua and two-spawned-worker HTTP tests:
+
+```text
+python scripts/check.py --redis-env .local/redis/test.env
+```
+
+Stop only this local service with `docker compose -f config/redis.local.compose.yaml stop`.
+Starting it again reloads ACLs and resets transient quotas/leases. Saved SQLite
+conversations survive. Drain API work before planned Redis restart; leases are not
+provider-side cancellation or physical fencing after Redis loses state.
+
+### Existing approved Redis service
+
+The mandatory local suite exercises adapter contracts, outages, concurrency and
+worker configuration without needing a server. Actual Lua execution requires an
+explicit isolated local Redis. Set NL2SQL_TEST_REDIS_URL to that approved local test
+store and run:
+
+```text
+python -m pytest -q tests/integration/test_redis.py tests/integration/test_redis_workers.py --no-cov
+```
+
+The fixture accepts loopback hosts only, creates unique synthetic key namespaces
+and deletes only its own keys. It never runs FLUSHDB. If the test URL is absent the
+real-server tests explicitly skip; if it is selected but unavailable they fail.
+The spawned-worker test launches the supported CLI with two workers, requires both
+worker PIDs to serve HTTP, and verifies shared quotas, exact synthetic query results
+and durable session history. It tears down only its own supervisor/worker tree.
+The prepared Linux CI job supplies Redis 8.2.10 and runs this suite. No CI execution
+or VM Redis qualification is implied merely by adding the workflow.
+
 ## Environment and checks
 
 ```powershell
@@ -78,6 +199,12 @@ The active version cannot be retired. Rollback rejects incompatible sources, rev
 
 ## Authorized Oracle bootstrap (live qualification blocked)
 
+The commented Oracle sections of `.env.example` enumerate the query and discovery
+process-environment variables, including credentials, approval flags and DBA context
+routines. Keep them commented in an application dotenv: `--env-file` does not load
+Oracle account settings. Provision them through the approved process launcher or
+secret manager. A template change does not authorize or establish live connectivity.
+
 Ask the DBA/security owners for dictionary visibility on explicit owners, network approval and a
 read-only discovery identity. Obtain business/security certification separately. Source profile,
 inventory, snapshots, approval files and indexes belong in company-approved restricted storage.
@@ -144,9 +271,23 @@ compare the independent golden fixtures and roll back the approved artifact as a
 business definitions through a model prompt. The local service requires restart for catalog/grant updates.
 
 For access revocation: remove the local grant/token and restart. Public history redacts when current
-principal grants differ from saved scope. Corporate real-time revocation and distributed limits need
-the approved identity/deployment integration. Expired conversations are inaccessible; storage-level purge,
-encryption, backups and legal retention are not provided by a scheduling daemon here.
+principal grants differ from saved scope. Session responses recheck identity after
+reads; public titles are generic so a grant change cannot expose old question text
+through sidebar summaries. Governed publication refreshes current grants; corporate
+sign-in/token revocation still needs approved enterprise identity integration.
+
+Expired conversations are inaccessible but remain owner-deletable. Run bounded
+retention maintenance outside API workers after approving the retention policy:
+
+```text
+python -m nl2sql purge-sessions --settings <protected-settings.json> --limit 1000
+```
+
+The command deletes at most the selected batch of expired sessions and cascaded
+messages. Repeat under approved maintenance scheduling if more remain; no API
+worker scheduler is installed. This does not purge backups or establish secure
+physical erasure from WAL files/storage. History reads/appends also enforce the
+configured UTF-8 byte budget and existing 200-message ceiling.
 
 Shutdown with Ctrl+C. Lifespan closes model HTTP clients, FTS indexes, business connections and sessions.
 Back up `.local/sessions.db` through an approved SQLite-consistent procedure; protect local bearer files.

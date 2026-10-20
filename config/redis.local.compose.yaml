@@ -1,0 +1,22 @@
+# Isolated synthetic development only; the office uses its approved Redis service.
+name: nl2sql-local
+services:
+  redis:
+    image: redis:8.2.10-alpine
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - ../.local/redis/users.acl:/run/redis/users.acl:ro
+    command:
+      - redis-server
+      - --aclfile
+      - /run/redis/users.acl
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - noeviction
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    restart: "no"

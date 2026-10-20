@@ -1,0 +1,13 @@
+{
+  "wheel": "ews_nl2sql-0.1.0-py3-none-any.whl",
+  "sha256": "85e7ccfe179954465cb7c691a5e4393723f9fd6e5f6416a7098dd15330bf87bc",
+  "package_files": 78,
+  "source_bytes_match": true,
+  "isolated_smoke": {
+    "wheel_import": "pass",
+    "redis_ready": 200,
+    "unauthenticated_chat": 401,
+    "exact_synthetic_result": "175000.50",
+    "durable_history_messages": 2
+  }
+}

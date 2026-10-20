@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-21",
+  "scope": "Local synthetic Redis integration and application quality; no office deployment",
+  "mandatory_command": "python scripts/check.py --redis-env .local/redis/test.env",
+  "tests_passed": 401,
+  "tests_skipped": 0,
+  "coverage_percent": 89,
+  "ruff": "pass",
+  "pylint_score": "10.00/10",
+  "pyright_errors": 0,
+  "pyright_warnings": 0,
+  "pre_commit": "pass",
+  "fresh_final_redis_api_worker_regressions_passed": 31,
+  "existing_dependency_deprecation_warnings": 1,
+  "ui_original_hashes": "pass",
+  "office_qualification": false,
+  "pre_publication_dependency_audit": {
+    "dependencies": 55,
+    "known_vulnerabilities": 0,
+    "certifi": "2026.10.19",
+    "fixed_advisory": "GHSA-6q48-6c7w-9gw2"
+  },
+  "synthetic_workflow_goldens": {
+    "passed": 46,
+    "runs": 46,
+    "provider": "deterministic_mock"
+  },
+  "schema_evolution_known_answers": {
+    "passed": 30,
+    "runs": 30,
+    "unknown_columns_do_not_gain_permissions": true
+  },
+  "package_wheel_source_files": 78,
+  "repository_cleanup": {
+    "duplicate_frontend_removed": true,
+    "obsolete_raw_logs_untracked": 3,
+    "duplicate_dependency_report_untracked": true,
+    "local_private_files_excluded": true
+  },
+  "retained_ui_mock_contract_tests": {
+    "passed": 16,
+    "failed": 0,
+    "live_browser_integration": false,
+    "speech_backend_enabled": false
+  },
+  "patched_environment_final_gate": {
+    "tests_passed": 401,
+    "tests_skipped": 0,
+    "coverage_percent": 89,
+    "existing_dependency_deprecation_warnings": 1,
+    "certifi": "2026.10.19"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "scope": "Isolated local Redis 8.2.10; synthetic API; no office services",
+  "checks": {
+    "ready_before": 200,
+    "chat_before": 200,
+    "ready_during_outage": 503,
+    "live_during_outage": 200,
+    "chat_during_outage": 503,
+    "outage_error": "RATE_LIMIT_UNAVAILABLE",
+    "ready_after": 200,
+    "history_after": 200,
+    "history_survived_redis_restart": true,
+    "chat_after": 200
+  }
+}

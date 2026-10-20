@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from nl2sql.evaluation import evaluate_workflows
+from nl2sql.evaluation.workflow import evaluate_workflows
 
 
 def main() -> None:

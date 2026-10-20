@@ -1,0 +1,8 @@
+{
+  "scope": "Isolated loopback Redis 8.2.10 with locally generated test certificate; not office PKI",
+  "checks": {
+    "trusted_tls_accepted": true,
+    "untrusted_tls_rejected": true,
+    "hostname_mismatch_rejected": true
+  }
+}
