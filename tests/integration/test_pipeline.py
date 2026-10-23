@@ -10,7 +10,7 @@ from nl2sql.domain.models import FilterGroup, Period, Predicate, QueryPlan, Sort
 
 
 def plan_for(resources, **updates) -> QueryPlan:
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     return QueryPlan.model_validate(
         {
             "catalog_version": catalog.version,
@@ -24,7 +24,7 @@ def plan_for(resources, **updates) -> QueryPlan:
 
 def run_plan(resources, plan, identity="analyst", dialect="sqlite"):
     principal = resources.auth.principals[identity]
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     validated = PlanValidator(catalog).validate(plan, principal)
     compiled = Compiler(catalog).compile(validated, principal, dialect)
     capability = resources.database.validator.validate(compiled, principal, time.time() + 5)

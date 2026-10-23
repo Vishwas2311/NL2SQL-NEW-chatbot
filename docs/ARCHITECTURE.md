@@ -1,5 +1,9 @@
 # Current architecture and limits
 
+Start with the [verified system walkthrough](APP_WALKTHROUGH.md) for the current end-to-end
+explanation, corrections to the older supplied architecture, database responsibilities and
+three workflows. It distinguishes implemented adapters from qualified office services.
+
 See the [application architecture diagram](ARCHITECTURE_DIAGRAM.md) for the
 source-verified Azure-style overview, scalable SVG, high-resolution PNG and
 editable draw.io source. Optional office integrations are explicitly marked.
@@ -47,9 +51,11 @@ See [Code structure](STRUCTURE.md) for ownership and enforced dependency rules.
 ## VM concurrency and Redis
 
 The user confirmed a VM with concurrent users and an existing Redis service on
-2026-10-20. This supersedes the earlier single-process recommendation. The office
-template now requires Redis and defaults to two API workers; the count and HTTP
-admission limit remain provisional until measured on the actual VM.
+2026-10-20. This supersedes the earlier single-process recommendation. The concurrent VM
+template requires Redis and defaults to two workers. The office laptop template now uses
+one worker, eight overall chat slots and one inference slot for initial qualification
+on the upgraded machine. Neither profile
+is a measured capacity claim.
 
 RedisRateLimiter implements one atomic Lua rolling-minute decision using Redis's
 clock, a namespaced hash of tenant/subject, unique request members, and 60-second
@@ -111,7 +117,7 @@ a four-million-byte UTF-8 budget per conversation and a 200-message limit; reads
 reject oversized legacy histories before materializing their message payloads.
 Owner-bound deletion works after expiry. An explicit bounded purge-sessions CLI
 removes expired sessions and cascaded messages outside API workers. No automatic
-scheduler, backup purge or secure physical-erasure guarantee is implied.
+session-purge scheduler, backup purge or secure physical-erasure guarantee is implied.
 Session operations reject an already expired request deadline and bound SQLite
 writer waits to the remaining budget, so a free Python lock cannot admit a late write.
 Messages have a session/id index for ordered history reads and cascaded deletes;
@@ -184,8 +190,10 @@ approved visibility. Unknown targets remain unverified.
 
 Reconciliation matches semantic relationships to exact physical objects and complete key mappings.
 Target unique grain, compatible types, tenant partition pairs and source uniqueness for one-to-one
-edges must hold. JoinGraph emits NetworkX edges only for certified catalog relationships after
-reconciliation succeeds. Edges retain pairs, cardinality, temporal rule, evidence and catalog version.
+edges must hold. Bootstrap projects certified catalog relationships into LadybugDB after reconciliation.
+The catalog and JoinGraph policy evidence retain full key pairs, cardinality, temporal rules,
+review references and version identity. Native links retain topology/relationship IDs and lineage;
+the graph projection does not become a separate business or access authority.
 
 The fixture has loans -> customers, accounts -> customers, payments -> customers and customers ->
 regions. Composite joins include tenant_id; customer IDs overlap between tenants. Historical use
@@ -251,7 +259,7 @@ and sorting also reject explicitly. No verified company contract defines these a
 they are not represented as implemented.
 
 Settings can reduce max_metrics/max_dimensions (1..5), max_rows (1..1000), max_join_edges (0..6).
-Filter depth/leaves and IN lists remain bounded. SQLite retains its stricter preflight checks.
+Filter depth/leaves and IN lists remain bounded. Both executors support the six-join ceiling and honor lower configured budgets.
 Decimal-source execution and database-context policy require Oracle. Unit/divisor/output precision
 are explicit. Native Oracle date/Decimal bind behavior is contract-tested without a live database.
 
@@ -367,7 +375,7 @@ compatibility and unchanged policy/grants. See [Operations](OPERATIONS.md) for c
 
 ### Index and graph report
 
-Default: exact aliases, scope-partitioned SQLite FTS5/BM25 and NetworkX. Search documents derive
+Default: exact aliases, scope-partitioned SQLite FTS5/BM25 and LadybugDB. Search documents derive
 from certified labels/aliases/definitions/domain, approved table/column descriptions and view IDs.
 Only metric-granted metadata enters each partition. Customer rows are never embedded.
 
@@ -375,24 +383,25 @@ EmbeddingProvider injection builds versioned vectors with dimension/finite-value
 memory checks. Hybrid lexical/cosine rank fusion falls back to lexical after safe encoder failures.
 Catalog, source/domain, metric IDs, grant partition and backend accompany vector entries.
 
-FaissVectorIndex implements approved lazy normalized IndexFlatIP and is wired through Retriever,
-BundleBuilder and RuntimeFactory via vector_factory. Backend identity enters the artifact manifest.
-FAISS and NumPy have NOT been installed or executed. A fake native binding tests approval-before-
-import, array shape/dtype, normalization, dimensions and permissions. This is adapter evidence only.
-No approved encoder or actual hybrid benchmark exists; lexical remains default.
+FAISS/NumPy bindings and the unused vector-factory selection path have been removed.
+A configured encoder automatically creates an embedded Ladybug exact-cosine projection
+per authorized metric partition. Fixed-size DOUBLE arrays, finite nonzero normalization,
+authorization predicates before limiting and serialized native cleanup are exercised with
+real local Ladybug. No extension, HNSW dependency or vector server is installed. The
+projection is rebuilt in memory at activation; an optional marked private encoder cache
+retains compatible vectors. Per-partition native buffers multiply by API workers.
 
-Qualification requires the same versioned encoder/vector_factory in the builder and runtime, the
-paired workflow evaluation, business-result/rejection/latency/memory comparisons and signed review.
-No command downloads a model or silently enables vectors. Optional dependencies need approval.
-
-Official reference: [FAISS exact indexes/cosine normalization](https://github.com/facebookresearch/faiss/wiki/Faiss-indexes).
+Qualification still requires the same versioned encoder and corpus in staging/runtime,
+paired workflow evaluation, result/rejection/latency/memory comparisons and signed review.
+No command downloads a model. Actual encoder semantic accuracy remains unqualified.
+Official reference: [Ladybug array cosine similarity](https://docs.ladybugdb.com/cypher/expressions/array-functions/).
 Local measurements: reports/benchmark.json, reports/retrieval.json, reports/schema-evolution.json.
 Scripted/toy evidence is explicitly distinct from real model accuracy.
 
 ## Release qualification
 
 Local synthetic checks do not qualify company Oracle, corporate identity,
-real Gemma/private or hosted inference, an installed encoder, or native FAISS.
+real Gemma/private or hosted inference, or an installed encoder on the target Mac/VM.
 No company connection, weights download, public publication, or deployment is
 authorized by these guides.
 
@@ -409,3 +418,103 @@ pre-commit checks. Hook execution is not claimed without runtime evidence.
 Run the checks in [Configuration](CONFIGURATION.md#operations-and-evidence)
 before relying on current source behavior. Historical proposed capabilities are
 kept separately in [Design reference](DESIGN_REFERENCE.md).
+
+
+## Embedded graph migration (2026-10-23)
+
+LadybugDB 0.21.2 is the selected local embedded runtime join topology store.
+There is no graph database daemon, cloud connection, model call or extension download.
+Bootstrap builds a catalog-digest-named file under `data_dir/graphs`, checkpoints and
+closes its single writer, then exposes read-only handles to API workers. New versions
+use different files. Runtime leases retain old handles until in-flight work drains.
+SQLite remains the approval, grants, active-pointer and session authority.
+Pure application adjacency performs structural catalog validation and drift impact;
+this transient evidence is not another database or a runtime fallback.
+
+`NL2SQL_GRAPH_BUFFER_MB` bounds each handle's native buffer pool (default 64 MiB,
+32?1024 MiB). Native query threads are fixed to one per handle. Memory also includes
+engine overhead, live bundles and search/compiler resources: this is not a process RSS cap.
+`NL2SQL_GRAPH_NATIVE_DIR` optionally names an approved Windows DLL directory; never
+point it at an untrusted/user-upload directory. The current Windows wheel requires
+OpenSSL 3 DLLs. A wheel install alone does not establish native-load compatibility.
+
+Graph creation uses a private temporary file and exclusive `.building` reservation.
+Failures do not replace an existing graph. A stale reservation after process death
+requires operator inspection and removal while builders are stopped. Never delete an
+active graph or clean files based only on one worker's local lease count. Back up graph
+files together with their approved catalogs; they are rebuildable projections.
+Read-only startup verifies catalog identity and certified join records. Corrupt files
+fail closed; restore/rebuild under maintenance rather than editing the active file.
+Scheduling remains disabled by default and stages changes for review, never auto-certifies.
+
+## Automatic preparation and SLM context protection (2026-10-23)
+
+`metadata prepare` discovers/stages, verifies supplied signed review, publishes only
+certified candidates and checks graph/search/vector/query resources automatically.
+`office` orchestrates this before supervising separate API and monitor processes. It
+explicitly enables the external schedule after preparation; bare API startup never does.
+New physical objects remain evidence, not business/access certification. An absent catalog
+can be discovered and staged without loading the synthetic fallback catalog. Changed backend
+manifests require restaging/review of older bundles; obsolete fingerprints are never rewritten.
+
+Metric grounding now expands authorized typed column/table/view BM25 evidence. Exact
+aliases retain their fast route. Restricted HTTP planning requires the runtime's full-request
+token counter, output reserve and configured context window. Optional rich records may be
+removed once; required contracts cannot be clipped. Malformed/oversized counts fail before
+generation. Private/TLS, same-origin and total deadline controls cover counting/generation.
+The six-edge executor ceiling now matches planning, with lower configured budgets honored.
+This is bounded supported planning, not a cost-based small/medium/large classifier.
+
+
+## Architecture review remediation (2026-10-24)
+
+The current composition remains a modular monolith. ChatService receives one immutable Catalog
+and an explicit SQLValidator/executor pair; the unused CatalogProvider indirection and object-identity
+snapshot check are removed. RuntimeManager still pins one complete approved bundle and rejects
+revoked grants; no raw SQL fallback or independent SQL check was removed.
+
+`application/routing.py` owns exact catalog templates and small deterministic follow-ups.
+`application/results.py` owns exact Decimal row formatting. Synthetic report templates already
+live in the fixture catalog; production routing contains no fallback report dictionary keyed by
+synthetic catalog versions. Write-intent screening is anchored to command intent, not any occurrence
+of words such as update. Typed DSL and read-only execution remain the actual execution safeguards.
+
+`domain/planning.py` adds PlanningDecision, typed clarification and one pending-question contract.
+Flexible follow-ups receive only compatible, currently scoped typed plan context. Clarification
+choices are grounded before persistence and perform no database query. HTTP model response_format
+contains the decision schema; it is not duplicated in default structured-mode metadata.
+
+SQLite upgrades and payload readers are versioned, preserving legacy payload identities and actual
+creation/discovery timestamps. Driver storage failures are translated by infrastructure. Domain
+Failure carries a category; transport maps categories to the unchanged HTTP contracts. Both chat
+routes use the same invocation/metrics boundary and inherited application deadline.
+
+Retrieval preflights schema plus metric text and aggregate configured native buffers. Metadata
+cache checkpoints are separate from query encoding and select metadata vectors explicitly. Redis
+continues to coordinate admission only. The default office profile is lexical-only, with optional
+approved private-HTTP embeddings and automatic vector preparation when enabled.
+
+Office checks require protected absolute storage outside source/sync folders and patched native
+SQLite. The stock launcher supports one worker; a qualified multiworker VM still needs Redis and
+its approved supervisor. Twenty-identity HTTP burst tests use controlled synthetic planning and
+verify bounded admission; they do not qualify real SLM throughput. macOS CI checks are defined but
+have not been run by this Windows session. See the remediation report for verification and office gates.
+
+## Separate inference admission (2026-10-24)
+
+The outer API admission still spans the complete turn and enforces current global and
+tenant/subject concurrency. `application/inference.py` holds a separate inner lease around
+the model-provider call. Exact catalog templates and recognized deterministic follow-ups
+bypass this inner lease; model-based follow-ups use it. Overall/database/session budgets
+still apply to every route. A template can still be rejected when overall capacity is full;
+there is no unconditional latency or reserved-capacity guarantee.
+
+Bootstrap owns both admission lifecycles. All live catalog bundles in one process share the
+same InferencePlanner and limiter; Redis uses separate keys to share the inference ceiling
+across workers. Inner overload fails promptly with INFERENCE_CAPACITY/429. Leases release
+on model success, typed clarification, malformed output or failure. A Redis release failure
+does not authorize execution. Existing current-grant, capability and request deadline checks
+remain independent. Publication probes use DisabledModel and never acquire model capacity.
+
+Office examples target 100000 tokens with one inference slot. This is deployment intent,
+not a claim of live model support, actual memory allocation or target-machine qualification.

@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import json
 
-import networkx as nx
-
+from nl2sql.application.graph import DirectedGraph
 from nl2sql.application.metadata.certification import physical_object
 from nl2sql.domain.fingerprints import catalog_hash, digest
 from nl2sql.domain.metadata import ChangeClass, ChangeImpact, SchemaChange
@@ -202,9 +201,9 @@ def semantic_changes(
     return tuple(result)
 
 
-def dependency_graph(catalog: Catalog) -> nx.DiGraph[str]:
+def dependency_graph(catalog: Catalog) -> DirectedGraph:
     """Physical source -> expression -> view -> search/compiler/saved-plan consumers."""
-    graph: nx.DiGraph[str] = nx.DiGraph()  # pylint: disable=unsubscriptable-object
+    graph = DirectedGraph()
     for table in catalog.tables:
         for column in table.columns:
             graph.add_edge("table:" + table.id, f"column:{table.id}.{column.name}")
@@ -321,7 +320,7 @@ def analyze_impact(
     )
 
 
-def _reachable(graph: nx.DiGraph[str], roots: set[str]) -> set[str]:
+def _reachable(graph: DirectedGraph, roots: set[str]) -> set[str]:
     """Bound work by visited nodes, including when dependencies share many paths."""
     reached = {node for node in roots if node in graph}
     pending = list(reached)

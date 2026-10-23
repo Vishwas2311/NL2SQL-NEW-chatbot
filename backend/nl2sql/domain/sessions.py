@@ -1,6 +1,7 @@
 """Immutable conversation contracts independent of persistence."""
 
 from nl2sql.domain.models import FrozenModel, QueryPlan, Row
+from nl2sql.domain.planning import PendingQuestion
 
 
 class Message(FrozenModel):
@@ -29,3 +30,5 @@ class SessionState(FrozenModel):
     session_id: str
     version: int
     last_plan: QueryPlan | None
+    pending: PendingQuestion | None = None
+    scope_digest: str = ""

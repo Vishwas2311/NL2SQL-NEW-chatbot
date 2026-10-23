@@ -5,6 +5,9 @@ permissions:
 jobs:
   local-quality:
     runs-on: windows-latest
+    env:
+      NL2SQL_GRAPH_NATIVE_DIR: 'C:\Program Files\Git\mingw64\bin'
+      NL2SQL_TEST_GRAPH_NATIVE_DIR: 'C:\Program Files\Git\mingw64\bin'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -16,6 +19,14 @@ jobs:
           python -m venv .venv
           .venv/Scripts/python -m pip install -r requirements.lock
           .venv/Scripts/python -m pip install --no-deps -e .
+      - name: Verify Windows native graph prerequisites
+        shell: pwsh
+        run: |
+          foreach ($name in @('libssl-3-x64.dll', 'libcrypto-3-x64.dll')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $env:NL2SQL_GRAPH_NATIVE_DIR $name))) {
+              throw "Missing approved graph native dependency: $name"
+            }
+          }
       - name: All mandatory checks
         run: .venv/Scripts/python scripts/check.py
       - name: Synthetic benchmark
@@ -46,3 +57,19 @@ jobs:
           python -m pip install --no-deps -e .
       - name: Real Lua, active leases and spawned API workers
         run: python -m pytest -q tests/integration/test_redis.py tests/integration/test_redis_workers.py --no-cov
+
+  macos-contracts:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.16'
+          cache: pip
+      - name: Install pinned backend and quality tools
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -r requirements.lock
+          .venv/bin/python -m pip install --no-deps -e .
+      - name: Native embedded graph, persistence, compiler and API contracts
+        run: .venv/bin/python scripts/check.py

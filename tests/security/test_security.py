@@ -35,7 +35,7 @@ from tests.integration.test_pipeline import plan_for
 def test_invalid_plans_never_execute(resources, updates, code):
     before = resources.database.execute_count
     with pytest.raises(Failure) as error:
-        PlanValidator(resources.service.store.snapshot()).validate(
+        PlanValidator(resources.service.compiler.catalog).validate(
             plan_for(resources, **updates), resources.auth.principals["analyst"]
         )
     assert error.value.code == code
@@ -54,7 +54,7 @@ def test_invalid_plans_never_execute(resources, updates, code):
 def test_invalid_monetary_having(resources, value):
     plan = plan_for(resources, having=Predicate(field="loan_exposure", op="gt", value=value))
     with pytest.raises(Failure):
-        PlanValidator(resources.service.store.snapshot()).validate(
+        PlanValidator(resources.service.compiler.catalog).validate(
             plan, resources.auth.principals["analyst"]
         )
 
@@ -94,10 +94,10 @@ def test_plan_structure_rejects_untrusted_fields(resources, update):
 )
 def test_unsafe_sql_rejected_without_execution(resources, attack):
     principal = resources.auth.principals["analyst"]
-    validated = PlanValidator(resources.service.store.snapshot()).validate(
+    validated = PlanValidator(resources.service.compiler.catalog).validate(
         plan_for(resources), principal
     )
-    draft = Compiler(resources.service.store.snapshot()).compile(validated, principal)
+    draft = Compiler(resources.service.compiler.catalog).compile(validated, principal)
     before = resources.database.execute_count
     with pytest.raises(Failure):
         resources.database.validator.validate(
@@ -120,7 +120,7 @@ def test_unsafe_sql_rejected_without_execution(resources, attack):
 )
 def test_semantic_tampering_rejected(resources, mutation):
     principal = resources.auth.principals["analyst"]
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     draft = Compiler(catalog).compile(
         PlanValidator(catalog).validate(plan_for(resources), principal), principal
     )
@@ -160,7 +160,7 @@ def test_remaining_ast_semantics_are_independent_of_compiler(resources, dialect,
     import sqlglot
     from sqlglot import exp
 
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     principal = resources.auth.principals["analyst"]
     plan = plan_for(
         resources,
@@ -190,7 +190,7 @@ def test_remaining_ast_semantics_are_independent_of_compiler(resources, dialect,
 
 def test_capability_signature_expiry_principal_and_permission_change(resources):
     principal = resources.auth.principals["analyst"]
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     draft = Compiler(catalog).compile(
         PlanValidator(catalog).validate(plan_for(resources), principal), principal
     )
@@ -209,7 +209,7 @@ def test_capability_signature_expiry_principal_and_permission_change(resources):
 
 def test_deadline_exhausted_before_capability_issued(resources):
     principal = resources.auth.principals["analyst"]
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     draft = Compiler(catalog).compile(
         PlanValidator(catalog).validate(plan_for(resources), principal), principal
     )

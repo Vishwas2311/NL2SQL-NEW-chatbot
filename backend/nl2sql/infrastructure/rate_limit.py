@@ -75,9 +75,11 @@ return 0
 def chat_denied(result: int) -> None:
     """Expose a stable admission error without identity or server details."""
     if result == 0:
-        raise Failure("CHAT_CAPACITY", "Chat capacity is busy; please retry shortly.", 429)
+        raise Failure("CHAT_CAPACITY", "Chat capacity is busy; please retry shortly.", "busy")
     if result == -1:
-        raise Failure("CHAT_IN_PROGRESS", "A chat request is already running for this user.", 429)
+        raise Failure(
+            "CHAT_IN_PROGRESS", "A chat request is already running for this user.", "busy"
+        )
 
 
 def principal_key(principal: Principal) -> str:
@@ -114,7 +116,7 @@ class MemoryRateLimiter:
             while window and window[0] <= now - 60:
                 window.popleft()
             if len(window) >= self.limit:
-                raise Failure("RATE_LIMIT", "Too many requests; please try again shortly.", 429)
+                raise Failure("RATE_LIMIT", "Too many requests; please try again shortly.", "busy")
             window.append(now)
 
     @contextmanager
@@ -210,11 +212,15 @@ class RedisRateLimiter:
             result = self.client.eval(script, len(keys), *keys, *arguments)
         except self._redis_error:
             raise Failure(
-                "RATE_LIMIT_UNAVAILABLE", "Request admission is temporarily unavailable.", 503
+                "RATE_LIMIT_UNAVAILABLE",
+                "Request admission is temporarily unavailable.",
+                "unavailable",
             ) from None
         if isinstance(result, bool) or not isinstance(result, int) or result not in (-1, 0, 1):
             raise Failure(
-                "RATE_LIMIT_UNAVAILABLE", "Request admission is temporarily unavailable.", 503
+                "RATE_LIMIT_UNAVAILABLE",
+                "Request admission is temporarily unavailable.",
+                "unavailable",
             )
         return result
 
@@ -224,10 +230,12 @@ class RedisRateLimiter:
         result = self._eval(ROLLING_WINDOW, (key,), self.limit, uuid4().hex)
         if result == -1:
             raise Failure(
-                "RATE_LIMIT_UNAVAILABLE", "Request admission is temporarily unavailable.", 503
+                "RATE_LIMIT_UNAVAILABLE",
+                "Request admission is temporarily unavailable.",
+                "unavailable",
             )
         if result == 0:
-            raise Failure("RATE_LIMIT", "Too many requests; please try again shortly.", 429)
+            raise Failure("RATE_LIMIT", "Too many requests; please try again shortly.", "busy")
 
     @contextmanager
     def chat(self, principal: Principal) -> Generator[None]:
@@ -245,7 +253,9 @@ class RedisRateLimiter:
             try:
                 released = self._eval(RELEASE_CHAT, keys, token)
                 if completed and released != 1:
-                    raise Failure("ADMISSION_EXPIRED", "Chat admission expired; please retry.", 503)
+                    raise Failure(
+                        "ADMISSION_EXPIRED", "Chat admission expired; please retry.", "unavailable"
+                    )
             except Failure:
                 # Preserve an original use-case failure; uncertain leases expire by themselves.
                 if completed:
@@ -258,15 +268,21 @@ class RedisRateLimiter:
             result = self.client.ping()
         except self._redis_error:
             raise Failure(
-                "RATE_LIMIT_UNAVAILABLE", "Request admission is temporarily unavailable.", 503
+                "RATE_LIMIT_UNAVAILABLE",
+                "Request admission is temporarily unavailable.",
+                "unavailable",
             ) from None
         if result is not True:
             raise Failure(
-                "RATE_LIMIT_UNAVAILABLE", "Request admission is temporarily unavailable.", 503
+                "RATE_LIMIT_UNAVAILABLE",
+                "Request admission is temporarily unavailable.",
+                "unavailable",
             )
         if self._eval(PROBE, (f"{self.prefix}:probe:{uuid4().hex}",)) != 1:
             raise Failure(
-                "RATE_LIMIT_UNAVAILABLE", "Request admission is temporarily unavailable.", 503
+                "RATE_LIMIT_UNAVAILABLE",
+                "Request admission is temporarily unavailable.",
+                "unavailable",
             )
 
     def close(self) -> None:
@@ -283,3 +299,21 @@ def build_rate_limiter(settings: Settings) -> RateLimiter:
         max_chats=settings.max_concurrent_chats,
         per_principal=settings.max_concurrent_chats_per_principal,
     )
+
+
+def build_inference_admission(settings: Settings) -> RateLimiter:
+    """Reuse atomic leases in an independent namespace; never share outer chat counters."""
+    scoped = settings.model_copy(
+        update={
+            "redis_key_prefix": settings.redis_key_prefix + ":inference",
+            "max_concurrent_chats": settings.max_concurrent_inferences,
+            "max_concurrent_chats_per_principal": 1,
+        }
+    )
+    limiter = build_rate_limiter(scoped)
+    try:
+        limiter.ready()
+    except BaseException:
+        limiter.close()
+        raise
+    return limiter

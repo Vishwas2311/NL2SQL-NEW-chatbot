@@ -6,11 +6,11 @@ from decimal import Decimal, localcontext
 import oracledb
 import pytest
 from nl2sql.application.catalog import validate_catalog
-from nl2sql.application.chat import ChatService
 from nl2sql.application.query.compiler import Compiler
 from nl2sql.application.query.entity_lookup import entity_query
 from nl2sql.application.query.planning import PlanValidator
 from nl2sql.application.query.security import SQLValidator
+from nl2sql.application.results import format_rows
 from nl2sql.domain.models import Catalog, Failure, Predicate, QueryPlan, TypedValue
 from nl2sql.infrastructure.databases.oracle import OracleAdapter, OracleConfig
 from nl2sql.infrastructure.databases.oracle_factory import (
@@ -18,7 +18,6 @@ from nl2sql.infrastructure.databases.oracle_factory import (
     OracleExecutionSettings,
     oracle_executor,
 )
-from nl2sql.infrastructure.metadata.catalog_store import CatalogStore
 
 from tests.contracts.test_oracle_adapter import FakeConnection, FakePolicy, FakePool
 
@@ -134,15 +133,7 @@ def test_oracle_exact_names_major_units_decimal_binds_and_independent_ast(settin
     try:
         result = adapter.execute(capability, principal)
         assert Decimal("10.01") in connection.calls[1][1].values()
-        service = ChatService(
-            settings,
-            CatalogStore.from_snapshot(catalog),
-            resources.retriever,
-            resources.model,
-            adapter,
-            resources.sessions,
-        )
-        output = service._format(result.rows, plan, catalog)
+        output = format_rows(result.rows, plan, catalog)
         assert output[0]["loan_exposure"] == "12345678901234567890123456789012.123456"
         tampered = query.model_copy(
             update={"sql": query.sql.replace('"Loans Ledger"', '"Private Ledger"')}

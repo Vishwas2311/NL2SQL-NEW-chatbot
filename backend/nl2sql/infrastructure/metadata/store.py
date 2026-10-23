@@ -14,11 +14,13 @@ from uuid import uuid4
 
 from nl2sql.domain.metadata import BundleSpec, Lifecycle, MetadataControl, MetadataRecord
 from nl2sql.domain.models import Failure
+from nl2sql.infrastructure.storage import migrate, require_format, schema_version, storage_errors
 
 
 class MetadataRepository:
     """Use an approved restricted local volume; the exporter respects its private marker."""
 
+    @storage_errors
     def __init__(self, root: Path, read_only: bool = False) -> None:
         self.root = root.resolve()
         if not read_only:
@@ -35,33 +37,47 @@ class MetadataRepository:
             check_same_thread=False,
             timeout=5,
         )
-        if read_only:
-            return
-        self._connection.execute("PRAGMA journal_mode=WAL")
-        self._connection.execute("PRAGMA synchronous=FULL")
-        self._connection.executescript("""
-            CREATE TABLE IF NOT EXISTS versions(id TEXT PRIMARY KEY,payload TEXT NOT NULL,
-                state TEXT NOT NULL,approvals TEXT NOT NULL DEFAULT '[]');
-            CREATE TABLE IF NOT EXISTS control(id INTEGER PRIMARY KEY CHECK(id=1),
-                active TEXT,revision INTEGER NOT NULL,blocked TEXT NOT NULL);
-            INSERT OR IGNORE INTO control VALUES(1,NULL,0,'[]');
-            CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,at TEXT NOT NULL,
-                event TEXT NOT NULL,version TEXT,actor TEXT,code TEXT);
-            CREATE TABLE IF NOT EXISTS leases(name TEXT PRIMARY KEY,owner TEXT,expires REAL);
-            CREATE TABLE IF NOT EXISTS schedule(id INTEGER PRIMARY KEY CHECK(id=1),enabled INTEGER NOT NULL,
-                interval_seconds INTEGER NOT NULL,next_at REAL NOT NULL,dry_run INTEGER NOT NULL);
-            INSERT OR IGNORE INTO schedule VALUES(1,0,900,0,1);
-        """)
+        try:
+            self._schema_version = schema_version(self._connection)
+            if read_only:
+                return
+            self._connection.execute("PRAGMA journal_mode=WAL")
+            self._connection.execute("PRAGMA synchronous=FULL")
+            migrate(
+                self._connection,
+                """
+                CREATE TABLE IF NOT EXISTS versions(id TEXT PRIMARY KEY,payload TEXT NOT NULL,
+                    state TEXT NOT NULL,approvals TEXT NOT NULL DEFAULT '[]');
+                CREATE TABLE IF NOT EXISTS control(id INTEGER PRIMARY KEY CHECK(id=1),
+                    active TEXT,revision INTEGER NOT NULL,blocked TEXT NOT NULL);
+                INSERT OR IGNORE INTO control VALUES(1,NULL,0,'[]');
+                CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,at TEXT NOT NULL,
+                    event TEXT NOT NULL,version TEXT,actor TEXT,code TEXT);
+                CREATE TABLE IF NOT EXISTS leases(name TEXT PRIMARY KEY,owner TEXT,expires REAL);
+                CREATE TABLE IF NOT EXISTS schedule(id INTEGER PRIMARY KEY CHECK(id=1),
+                    enabled INTEGER NOT NULL,
+                    interval_seconds INTEGER NOT NULL,next_at REAL NOT NULL,
+                    dry_run INTEGER NOT NULL);
+                INSERT OR IGNORE INTO schedule VALUES(1,0,900,0,1);
+            """,
+                (("versions", "format_version"),),
+            )
+            self._schema_version = 3
+        except BaseException:
+            self._connection.close()
+            raise
 
     @contextmanager
+    @storage_errors
     def transaction(self) -> Generator[sqlite3.Connection]:
         """BEGIN before reading state, so multiple CLI processes cannot lose updates."""
         if self.read_only:
-            raise Failure("DRY_RUN_WRITE", "A dry run cannot change metadata state.", 403)
+            raise Failure("DRY_RUN_WRITE", "A dry run cannot change metadata state.", "denied")
         with self._lock, self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             yield self._connection
 
+    @storage_errors
     def control(self) -> MetadataControl:
         """This small local read never polls Oracle on a chat request."""
         with self._lock:
@@ -73,25 +89,30 @@ class MetadataRepository:
             active=row[0], revision=int(row[1]), blocked_views=tuple(json.loads(row[2]))
         )
 
+    @storage_errors
     def get(self, version: str) -> MetadataRecord:
         """Recompute the immutable payload identity before any approval or recovery."""
         with self._lock:
+            format_field = "format_version" if self._schema_version >= 2 else "1"
             row = self._connection.execute(
-                "SELECT payload,state,approvals FROM versions WHERE id=?", (version,)
+                f"SELECT payload,state,approvals,{format_field} FROM versions WHERE id=?",
+                (version,),
             ).fetchone()
         if row is None:
-            raise Failure("VERSION_NOT_FOUND", "The metadata version was not found.", 404)
+            raise Failure("VERSION_NOT_FOUND", "The metadata version was not found.", "not_found")
+        require_format(int(row[3]), (1, 2))
         record = MetadataRecord(
-            spec=BundleSpec.model_validate_json(row[0]),
+            spec=BundleSpec.read_payload(row[0], int(row[3])),
             state=row[1],
             approvals=tuple(json.loads(row[2])),
         )
         if record.spec.id != version:
             raise Failure(
-                "METADATA_INTEGRITY", "Metadata content failed integrity validation.", 503
+                "METADATA_INTEGRITY", "Metadata content failed integrity validation.", "unavailable"
             )
         return record
 
+    @storage_errors
     def latest(self) -> MetadataRecord | None:
         """Bound history is separate from candidate payloads and private metadata text."""
         with self._lock:
@@ -100,6 +121,7 @@ class MetadataRepository:
             ).fetchone()
         return self.get(row[0]) if row else None
 
+    @storage_errors
     def policy_version_conflict(
         self, version: str, fingerprint: str, active_revision: str | None = None
     ) -> bool:
@@ -115,17 +137,19 @@ class MetadataRepository:
             ).fetchone()
         return row is not None
 
+    @storage_errors
     def stage(self, spec: BundleSpec) -> MetadataRecord:
         """Commit a complete immutable candidate; active state is untouched."""
         state: Lifecycle = "pending_verification" if spec.issues else "pending_approval"
         with self.transaction() as connection:
             connection.execute(
-                "INSERT OR IGNORE INTO versions(id,payload,state) VALUES(?,?,?)",
-                (spec.id, spec.model_dump_json(), state),
+                "INSERT OR IGNORE INTO versions(id,payload,state,format_version) VALUES(?,?,?,2)",
+                (spec.id, spec.payload_json(), state),
             )
             self._event(connection, "candidate_staged", spec.id, None, None)
         return self.get(spec.id)
 
+    @storage_errors
     def quarantine(self, views: tuple[str, ...]) -> None:
         """Known broken physical mappings block affected old bundles, including in-flight caps."""
         if not views:
@@ -139,6 +163,7 @@ class MetadataRepository:
             )
             self._event(connection, "physical_quarantine", None, None, "SCHEMA_DRIFT")
 
+    @storage_errors
     def set_approvals(
         self, version: str, approvals: tuple[str, ...], actor: str, complete: bool
     ) -> MetadataRecord:
@@ -153,11 +178,12 @@ class MetadataRepository:
                 raise Failure(
                     "LIFECYCLE_DENIED",
                     "The metadata version cannot be approved in this state.",
-                    409,
+                    "conflict",
                 )
             self._event(connection, "approval_recorded", version, actor, None)
         return self.get(version)
 
+    @storage_errors
     def activate(
         self, version: str, expected: MetadataControl, actor: str, rollback: bool = False
     ) -> MetadataControl:
@@ -172,12 +198,16 @@ class MetadataRepository:
                 or float(lease[1]) <= time.time()
             ):
                 raise Failure(
-                    "REFRESH_LEASE_EXPIRED", "The refresh lease expired; retry publication.", 409
+                    "REFRESH_LEASE_EXPIRED",
+                    "The refresh lease expired; retry publication.",
+                    "conflict",
                 )
             row = connection.execute("SELECT state FROM versions WHERE id=?", (version,)).fetchone()
             allowed = {"published", "superseded", "certified"} if rollback else {"certified"}
             if row is None or row[0] not in allowed:
-                raise Failure("LIFECYCLE_DENIED", "A certified metadata version is required.", 409)
+                raise Failure(
+                    "LIFECYCLE_DENIED", "A certified metadata version is required.", "conflict"
+                )
             changed = connection.execute(
                 "UPDATE control SET active=?,revision=revision+1,blocked='[]' "
                 "WHERE id=1 AND revision=? AND active IS ?",
@@ -187,7 +217,7 @@ class MetadataRepository:
                 raise Failure(
                     "PUBLICATION_CONFLICT",
                     "Another metadata operation changed the active state.",
-                    409,
+                    "conflict",
                 )
             if expected.active is not None and expected.active != version:
                 connection.execute(
@@ -197,20 +227,26 @@ class MetadataRepository:
             self._event(connection, "rollback" if rollback else "published", version, actor, None)
         return self.control()
 
+    @storage_errors
     def retire(self, version: str, actor: str, rejected: bool = False) -> None:
         """Never retire the active version behind in-flight requests."""
         with self.transaction() as connection:
             row = connection.execute("SELECT active FROM control WHERE id=1").fetchone()
             if row[0] == version:
-                raise Failure("LIFECYCLE_DENIED", "Publish a replacement before retirement.", 409)
+                raise Failure(
+                    "LIFECYCLE_DENIED", "Publish a replacement before retirement.", "conflict"
+                )
             changed = connection.execute(
                 "UPDATE versions SET state=? WHERE id=?",
                 ("rejected" if rejected else "retired", version),
             ).rowcount
             if changed != 1:
-                raise Failure("VERSION_NOT_FOUND", "The metadata version was not found.", 404)
+                raise Failure(
+                    "VERSION_NOT_FOUND", "The metadata version was not found.", "not_found"
+                )
             self._event(connection, "retired", version, actor, None)
 
+    @storage_errors
     def history(self) -> tuple[dict[str, object], ...]:
         """Routine status contains opaque IDs and safe error codes, not schema descriptions."""
         with self._lock:
@@ -221,6 +257,7 @@ class MetadataRepository:
             dict(zip(("at", "event", "version", "actor", "code"), row, strict=True)) for row in rows
         )
 
+    @storage_errors
     def record_failure(self, code: str) -> None:
         """Never persist provider exception text or credentials."""
         with self.transaction() as connection:
@@ -240,6 +277,7 @@ class MetadataRepository:
         )
 
     @contextmanager
+    @storage_errors
     def refresh_lease(
         self, seconds: int = 300, name: Literal["refresh", "schedule"] = "refresh"
     ) -> Generator[None]:
@@ -250,7 +288,9 @@ class MetadataRepository:
         with self.transaction() as connection:
             row = connection.execute("SELECT expires FROM leases WHERE name=?", (name,)).fetchone()
             if row is not None and float(row[0]) > time.time():
-                raise Failure("REFRESH_BUSY", "Another metadata refresh is already running.", 409)
+                raise Failure(
+                    "REFRESH_BUSY", "Another metadata refresh is already running.", "conflict"
+                )
             connection.execute(
                 "INSERT OR REPLACE INTO leases VALUES(?,?,?)",
                 (name, identity, time.time() + seconds),
@@ -263,6 +303,7 @@ class MetadataRepository:
             with self.transaction() as connection:
                 connection.execute("DELETE FROM leases WHERE name=? AND owner=?", (name, identity))
 
+    @storage_errors
     def candidates(self) -> tuple[dict[str, object], ...]:
         """Opaque status listing; detailed payload review is a privileged CLI operation."""
         with self._lock:
@@ -271,6 +312,7 @@ class MetadataRepository:
             ).fetchall()
         return tuple({"candidate_id": row[0], "state": row[1]} for row in rows)
 
+    @storage_errors
     def configure_schedule(self, enabled: bool, interval: int, dry_run: bool, actor: str) -> None:
         """A separate approved scheduler owns polling; API workers never enable it."""
         if not 5 <= interval <= 86_400:
@@ -282,6 +324,7 @@ class MetadataRepository:
             )
             self._event(connection, "schedule_configured", None, actor, None)
 
+    @storage_errors
     def claim_schedule(self, now: float) -> bool | None:
         """One atomic due-time claim prevents duplicate poll loops across local processes."""
         with self.transaction() as connection:
@@ -293,6 +336,7 @@ class MetadataRepository:
             connection.execute("UPDATE schedule SET next_at=? WHERE id=1", (now + int(row[1]),))
             return bool(row[3])
 
+    @storage_errors
     def close(self) -> None:
         """Close after refresh and request users have drained."""
         self._connection.close()

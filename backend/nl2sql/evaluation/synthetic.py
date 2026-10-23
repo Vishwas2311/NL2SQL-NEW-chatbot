@@ -275,6 +275,7 @@ def initialize(data_dir: Path, catalog_path: Path) -> None:
     )
     tokens = {principal.id: secrets.token_urlsafe(32) for principal in principals}
     settings = Settings(
+        data_classification="synthetic",
         data_dir=data_dir.resolve(),
         catalog_path=catalog_path.resolve(),
         catalog_digest=digest(payload),

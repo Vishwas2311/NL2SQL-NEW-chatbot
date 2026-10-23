@@ -9,21 +9,30 @@ from pathlib import Path
 
 import uvicorn
 
+from nl2sql.bootstrap.office_checks import office_preflight
 from nl2sql.cli.metadata import MetadataOptions, add_metadata_parser, run_metadata
+from nl2sql.cli.office import run_office
 from nl2sql.domain.models import Failure
 from nl2sql.evaluation.synthetic import initialize
 from nl2sql.infrastructure.inference.model import build_model
 from nl2sql.infrastructure.rate_limit import build_rate_limiter
 from nl2sql.infrastructure.retrieval.embeddings import build_embedding
 from nl2sql.infrastructure.sessions import SessionStore
-from nl2sql.settings import load_settings
+from nl2sql.settings import load_settings, selected_environment
 
 
 def main() -> None:
     """Initialize isolated demo files or run a securely configured API process."""
     parser = argparse.ArgumentParser(description="EWS synthetic NL-to-SQL backend")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("init-demo", "serve", "validate-config", "check-redis", "purge-sessions"):
+    for name in (
+        "init-demo",
+        "serve",
+        "office",
+        "validate-config",
+        "check-redis",
+        "purge-sessions",
+    ):
         command = commands.add_parser(name)
         command.add_argument("--settings", type=Path, default=Path(".local/settings.json"))
         command.add_argument("--port", type=int, default=8000)
@@ -31,6 +40,9 @@ def main() -> None:
         command.add_argument("--env-file", type=Path)
         if name == "serve":
             command.add_argument("--workers", type=int, choices=range(1, 17))
+        if name == "office":
+            command.add_argument("--approval-file", type=Path)
+            command.add_argument("--interval", type=int, default=900)
         if name == "purge-sessions":
             command.add_argument(
                 "--limit",
@@ -38,13 +50,33 @@ def main() -> None:
                 default=1000,
                 help="Maximum expired sessions per batch (1..1000)",
             )
-        command.add_argument(
-            "--catalog", type=Path, default=Path("metadata/synthetic/catalog-v43.json")
-        )
+        if name != "office":
+            command.add_argument(
+                "--catalog", type=Path, default=Path("metadata/synthetic/catalog-v43.json")
+            )
     add_metadata_parser(commands.add_parser("metadata", help="Governed schema metadata operations"))
     arguments = parser.parse_args()
-    if arguments.command == "metadata":
+    try:
+        with selected_environment(arguments.env_file):
+            _run(arguments, parser)
+    except (ValueError, OSError):
+        parser.exit(1, "Configuration or local storage is invalid; values are omitted.\n")
+
+
+def _run(arguments: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Dispatch commands with one consistent environment for every adapter."""
+    if arguments.command in {"metadata", "office"}:
         try:
+            if arguments.command == "office":
+                run_office(
+                    arguments.settings,
+                    arguments.env_file,
+                    arguments.metadata_root,
+                    arguments.approval_file,
+                    arguments.port,
+                    arguments.interval,
+                )
+                return
             print(
                 json.dumps(
                     run_metadata(MetadataOptions.model_validate(vars(arguments))), default=str
@@ -124,11 +156,14 @@ def main() -> None:
         return
     if arguments.command == "validate-config":
         try:
+            office_preflight(configuration)
             build_model(configuration).close()
             encoder = build_embedding(configuration)
             if encoder is not None:
                 encoder.close()
-        except (Failure, ValueError, OSError):
+        except Failure as error:
+            parser.exit(1, json.dumps({"code": error.code, "message": error.message}) + "\n")
+        except (ValueError, OSError):
             parser.exit(1, "Provider configuration is invalid; values are omitted.\n")
         print(
             json.dumps(
@@ -136,6 +171,12 @@ def main() -> None:
                     "valid": True,
                     "model": configuration.model_mode,
                     "embedding": configuration.embedding_mode,
+                    "sqlite_version": sqlite3.sqlite_version,
+                    "api_workers": configuration.api_workers,
+                    "active_chat_limit": configuration.max_concurrent_chats,
+                    "active_inference_limit": configuration.max_concurrent_inferences,
+                    "retrieval_native_buffer_ceiling_mb": configuration.retrieval_max_native_mb
+                    * configuration.api_workers,
                 }
             )
         )

@@ -29,7 +29,7 @@ class ApprovalAuthority:
     def authenticate(self, token: str | None, action: str) -> AdminActor:
         """Every privileged command verifies issuer, audience, expiry and authorized action."""
         if not token or len(token) > 8192:
-            raise Failure("ADMIN_DENIED", "A valid administrative identity is required.", 403)
+            raise Failure("ADMIN_DENIED", "A valid administrative identity is required.", "denied")
         try:
             claims = jwt.decode(
                 token,
@@ -41,9 +41,11 @@ class ApprovalAuthority:
             )
             actor = AdminActor(id=claims["sub"], actions=claims["actions"])
         except (jwt.InvalidTokenError, ValueError, TypeError, KeyError) as error:
-            raise Failure("ADMIN_DENIED", "Administrative authorization failed.", 403) from error
+            raise Failure(
+                "ADMIN_DENIED", "Administrative authorization failed.", "denied"
+            ) from error
         if action not in actor.actions:
-            raise Failure("ADMIN_DENIED", "This administrative action is not authorized.", 403)
+            raise Failure("ADMIN_DENIED", "This administrative action is not authorized.", "denied")
         return actor
 
     def verify(
@@ -57,7 +59,7 @@ class ApprovalAuthority:
         """Published review evidence remains auditable; revoked trust keys still fail closed."""
         evidence: list[ApprovalEvidence] = []
         if len(tokens) > 16:
-            raise Failure("APPROVAL_DENIED", "Too many approval records.", 403)
+            raise Failure("APPROVAL_DENIED", "Too many approval records.", "denied")
         for token in tokens:
             try:
                 if len(token) > 8192:
@@ -106,7 +108,7 @@ class ApprovalAuthority:
                 evidence.append(item)
             except (jwt.InvalidTokenError, ValueError, TypeError, KeyError) as error:
                 raise Failure(
-                    "APPROVAL_DENIED", "Approval evidence failed verification.", 403
+                    "APPROVAL_DENIED", "Approval evidence failed verification.", "denied"
                 ) from error
         return tuple(evidence)
 
@@ -122,7 +124,9 @@ class ApprovalAuthority:
         evidence = self.verify(tokens, candidate_id, source_id, synthetic, published)
         if not ROLES <= {role for item in evidence for role in item.roles}:
             raise Failure(
-                "APPROVAL_MISSING", "Physical, business and security approvals are required.", 409
+                "APPROVAL_MISSING",
+                "Physical, business and security approvals are required.",
+                "conflict",
             )
         return evidence
 

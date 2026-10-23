@@ -3,7 +3,6 @@
 import json
 import logging
 import os
-import sqlite3
 import time
 from collections.abc import AsyncGenerator, Callable
 from contextlib import ExitStack, asynccontextmanager
@@ -15,13 +14,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import RequestResponseEndpoint
 
-from nl2sql.api.compatibility import error_payload
+from nl2sql.api.compatibility import error_payload, failure_status
 from nl2sql.api.middleware import BodyLimitMiddleware
 from nl2sql.api.schemas import ChatRequest, DisplayMessage, EWSResponse, SessionHistory, SessionList
 from nl2sql.application.ports import ApplicationResources, ModelProvider, RateLimiter
 from nl2sql.domain.models import Answer, Failure, Principal
 from nl2sql.settings import Settings
-from nl2sql.telemetry import REQUEST_ID
+from nl2sql.telemetry import REQUEST_ID, STAGE_SPANS, stage_metrics
 
 LOGGER = logging.getLogger("nl2sql")
 
@@ -57,7 +56,7 @@ def create_app(
                 limiter.ready()
                 resources = resources_factory(configuration, model)
                 cleanup.callback(resources.close)
-            except (Failure, ValueError, OSError, sqlite3.Error, ImportError) as error:
+            except (Failure, ValueError, OSError, ImportError) as error:
                 code = (
                     error.code
                     if isinstance(error, Failure)
@@ -66,7 +65,9 @@ def create_app(
                     else "STARTUP_CONFIGURATION"
                 )
                 raise Failure(
-                    code, "Backend startup checks failed; review sanitized diagnostics.", 503
+                    code,
+                    "Backend startup checks failed; review sanitized diagnostics.",
+                    "unavailable",
                 ) from None
             try:
                 yield
@@ -84,12 +85,12 @@ def create_app(
 
     def ready() -> ApplicationResources:
         if resources is None:
-            raise Failure("NOT_READY", "The service is not ready.", 503)
+            raise Failure("NOT_READY", "The service is not ready.", "unavailable")
         return resources
 
     def admission() -> RateLimiter:
         if limiter is None:
-            raise Failure("NOT_READY", "The service is not ready.", 503)
+            raise Failure("NOT_READY", "The service is not ready.", "unavailable")
         return limiter
 
     def principal(authorization: Annotated[str | None, Header()] = None) -> Principal:
@@ -116,7 +117,8 @@ def create_app(
             request_id = str(uuid4())
         context_token = REQUEST_ID.set(request_id)
         try:
-            response = await call_next(request)
+            with stage_metrics({}, time.time() + configuration.request_timeout_seconds):
+                response = await call_next(request)
         finally:
             REQUEST_ID.reset(context_token)
         response.headers["X-Request-ID"] = request_id
@@ -138,7 +140,9 @@ def create_app(
     @app.exception_handler(Failure)
     async def failure_handler(request: Request, error: Failure) -> JSONResponse:
         return JSONResponse(
-            error_payload(request.url.path, error.code, error.message), status_code=error.status
+            error_payload(request.url.path, error.code, error.message),
+            status_code=failure_status(error),
+            headers={"Retry-After": "1"} if error.kind == "busy" else None,
         )
 
     @app.exception_handler(RequestValidationError)
@@ -156,15 +160,6 @@ def create_app(
                 request.url.path, "INTERNAL_ERROR", "The request could not be completed."
             ),
             status_code=500,
-        )
-
-    @app.exception_handler(sqlite3.Error)
-    async def storage_handler(request: Request, _error: sqlite3.Error) -> JSONResponse:
-        return JSONResponse(
-            error_payload(
-                request.url.path, "STORAGE_UNAVAILABLE", "Local storage is temporarily unavailable."
-            ),
-            status_code=503,
         )
 
     @app.get("/health")
@@ -191,29 +186,43 @@ def create_app(
             **active.components(),
         }
 
+    def invoke_chat(body: ChatRequest, identity: Principal) -> Answer:
+        spans = STAGE_SPANS.get()
+        if spans is None:
+            spans = {}
+        spans.setdefault("model_calls", 0)
+        status = "failed"
+        code: str | None = None
+        try:
+            with admission().chat(identity):
+                answer = ready().service.chat(
+                    body.message, body.session_id, identity, body.user_id, spans
+                )
+            status = answer.status
+            return answer
+        except Failure as error:
+            code = error.code
+            raise
+        finally:
+            LOGGER.info(
+                json.dumps(
+                    {
+                        "event": "pipeline",
+                        "request_id": REQUEST_ID.get(),
+                        "status": status,
+                        "error_code": code,
+                        "spans": spans,
+                    }
+                )
+            )
+
     @app.post("/ews-chatbot/chat", response_model=EWSResponse)
     def chat(body: ChatRequest, identity: Annotated[Principal, Depends(principal)]) -> EWSResponse:
-        spans: dict[str, float] = {"model_calls": 0}
-        with admission().chat(identity):
-            answer = ready().service.chat(
-                body.message, body.session_id, identity, body.user_id, spans
-            )
-        LOGGER.info(
-            json.dumps(
-                {
-                    "event": "pipeline",
-                    "request_id": REQUEST_ID.get(),
-                    "status": answer.status,
-                    "spans": spans,
-                }
-            )
-        )
-        return to_ews(answer)
+        return to_ews(invoke_chat(body, identity))
 
     @app.post("/api/v1/chat", response_model=Answer)
     def typed_chat(body: ChatRequest, identity: Annotated[Principal, Depends(principal)]) -> Answer:
-        with admission().chat(identity):
-            return ready().service.chat(body.message, body.session_id, identity, body.user_id, {})
+        return invoke_chat(body, identity)
 
     @app.get("/ews-chatbot/get_all_sessions", response_model=SessionList)
     @app.get("/api/v1/sessions", response_model=SessionList)
@@ -246,7 +255,7 @@ def create_app(
 
     @app.post("/api/v1/speech/transcriptions")
     def speech(_identity: Annotated[Principal, Depends(principal)]) -> Response:
-        raise Failure("SPEECH_DISABLED", "Speech transcription is not enabled.", 501)
+        raise Failure("SPEECH_DISABLED", "Speech transcription is not enabled.", "not_implemented")
 
     app.add_middleware(BodyLimitMiddleware)
     return app

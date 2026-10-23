@@ -5,6 +5,7 @@ from threading import Lock
 
 import pytest
 from fastapi.testclient import TestClient
+from nl2sql.api.compatibility import failure_status
 from nl2sql.bootstrap.factory import create_app
 from nl2sql.domain.models import Failure
 from nl2sql.infrastructure.rate_limit import (
@@ -75,7 +76,7 @@ def outcome(limiter, user):
         limiter.check(user)
         return 200
     except Failure as error:
-        return error.status
+        return failure_status(error)
 
 
 def test_rolling_memory_quota_expires_and_isolates_tenants(settings):
@@ -133,10 +134,16 @@ def test_redis_failure_blocks_startup_and_closes_client(settings):
     assert store.closed
 
 
-def test_api_quota_and_outage_use_safe_errors_without_local_fallback(settings, credentials):
+def test_api_quota_and_outage_use_safe_errors_without_local_fallback(
+    settings, credentials, monkeypatch
+):
     store = SharedRedisContract()
     configuration = configured(settings, requests_per_minute=1)
     limiter = RedisRateLimiter(configuration, store)
+    monkeypatch.setattr(
+        "nl2sql.infrastructure.rate_limit.build_rate_limiter",
+        lambda scoped: RedisRateLimiter(scoped, store),
+    )
     headers = {"Authorization": "Bearer " + credentials[settings.principals[0].id]}
     with TestClient(create_app(configuration, rate_limiter_factory=lambda _: limiter)) as client:
         first = client.get("/ews-chatbot/get_all_sessions", headers=headers)
@@ -211,7 +218,7 @@ def test_redis_release_outage_blocks_success_and_preserves_original_failure(sett
     with pytest.raises(Failure) as error:
         with limiter.chat(settings.principals[0]):
             if work_fails:
-                raise Failure("SYNTHETIC_FAILURE", "Original error.", 400)
+                raise Failure("SYNTHETIC_FAILURE", "Original error.", "invalid")
     assert error.value.code == ("SYNTHETIC_FAILURE" if work_fails else "RATE_LIMIT_UNAVAILABLE")
     assert "sentinel" not in str(error.value)
 

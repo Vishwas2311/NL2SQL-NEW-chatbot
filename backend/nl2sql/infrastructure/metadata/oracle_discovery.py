@@ -93,7 +93,7 @@ class OracleDiscovery:
             raise Failure(
                 "ORACLE_NOT_APPROVED",
                 "Oracle metadata access requires organizational authorization.",
-                403,
+                "denied",
             )
         if not settings.owners or any(
             not owner or len(owner) > 128 or "\x00" in owner for owner in settings.owners
@@ -121,15 +121,21 @@ class OracleDiscovery:
                         except oracledb.Error:
                             pass
                         raise Failure(
-                            "DISCOVERY_CLEANUP", "Discovery connection cleanup failed.", 503
+                            "DISCOVERY_CLEANUP",
+                            "Discovery connection cleanup failed.",
+                            "unavailable",
                         ) from None
             except oracledb.Error:
                 raise Failure(
-                    "DISCOVERY_UNAVAILABLE", "Oracle metadata discovery is unavailable.", 503
+                    "DISCOVERY_UNAVAILABLE",
+                    "Oracle metadata discovery is unavailable.",
+                    "unavailable",
                 ) from None
         if settings.dsn is None or settings.user is None or settings.password is None:
             raise Failure(
-                "ORACLE_CONFIGURATION", "Approved discovery credentials are required.", 503
+                "ORACLE_CONFIGURATION",
+                "Approved discovery credentials are required.",
+                "unavailable",
             )
         try:
             with closing(
@@ -149,7 +155,7 @@ class OracleDiscovery:
                     connection.rollback()
         except oracledb.Error as error:
             raise Failure(
-                "DISCOVERY_UNAVAILABLE", "Oracle metadata discovery is unavailable.", 503
+                "DISCOVERY_UNAVAILABLE", "Oracle metadata discovery is unavailable.", "unavailable"
             ) from error
 
     def _discover(self, connection: OracleConnection, started: float) -> PhysicalInventory:
@@ -164,7 +170,7 @@ class OracleDiscovery:
                 remaining = self.settings.timeout_seconds - (time.monotonic() - started)
                 if remaining <= 0:
                     raise Failure(
-                        "DISCOVERY_TIMEOUT", "Metadata discovery exceeded its deadline.", 504
+                        "DISCOVERY_TIMEOUT", "Metadata discovery exceeded its deadline.", "timeout"
                     )
                 connection.call_timeout = max(1, int(remaining * 1000))
                 binds: dict[str, str | int | date] = {
@@ -186,12 +192,16 @@ class OracleDiscovery:
                         records[key] = ()
                         continue
                     raise Failure(
-                        "DISCOVERY_UNAVAILABLE", "Required Oracle metadata is unavailable.", 503
+                        "DISCOVERY_UNAVAILABLE",
+                        "Required Oracle metadata is unavailable.",
+                        "unavailable",
                     ) from error
                 total_rows += len(rows)
                 if total_rows > self.settings.max_rows:
                     raise Failure(
-                        "DISCOVERY_LIMIT", "Metadata discovery exceeded its record budget.", 413
+                        "DISCOVERY_LIMIT",
+                        "Metadata discovery exceeded its record budget.",
+                        "too_large",
                     )
                 values: list[DictionaryRow] = []
                 for row in rows:
@@ -199,12 +209,16 @@ class OracleDiscovery:
                     total_bytes += sum(len(str(value).encode()) for value in converted)
                     if total_bytes > self.settings.max_bytes:
                         raise Failure(
-                            "DISCOVERY_LIMIT", "Metadata discovery exceeded its byte budget.", 413
+                            "DISCOVERY_LIMIT",
+                            "Metadata discovery exceeded its byte budget.",
+                            "too_large",
                         )
                     values.append(dict(zip(projection.lower().split(","), converted, strict=True)))
                 records[key] = tuple(values)
         if time.monotonic() - started > self.settings.timeout_seconds:
-            raise Failure("DISCOVERY_TIMEOUT", "Metadata discovery exceeded its deadline.", 504)
+            raise Failure(
+                "DISCOVERY_TIMEOUT", "Metadata discovery exceeded its deadline.", "timeout"
+            )
         return inventory_from_dictionary(
             self.settings.source_id, self.settings.owners, records, tuple(warnings)
         )
@@ -218,7 +232,9 @@ def dictionary_scalar(value: object) -> DictionaryValue:
         return int(value)
     if isinstance(value, (date, datetime)):
         return value.isoformat()
-    raise Failure("DISCOVERY_TYPE", "Oracle metadata contained an unsupported value.", 503)
+    raise Failure(
+        "DISCOVERY_TYPE", "Oracle metadata contained an unsupported value.", "unavailable"
+    )
 
 
 def inventory_from_dictionary(

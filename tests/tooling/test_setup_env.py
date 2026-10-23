@@ -10,8 +10,9 @@ import setup_env
 
 
 @pytest.mark.parametrize("existing_settings", [None, "NL2SQL_MODEL_MODE=private_http\n"])
+@pytest.mark.parametrize("office", [False, True])
 def test_setup_from_another_directory_preserves_settings(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, existing_settings: str | None
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, existing_settings: str | None, office: bool
 ) -> None:
     root = tmp_path / "project with spaces"
     root.mkdir()
@@ -41,16 +42,43 @@ def test_setup_from_another_directory_preserves_settings(
     monkeypatch.setattr(setup_env.subprocess, "run", run)
     if existing_settings is not None:
         (root / ".env").write_text(existing_settings, encoding="utf-8")
-    setup_env.main()
-    setup_env.main()
+    setup_env.main(office=office)
+    setup_env.main(office=office)
     assert created == [root / ".venv"]
     assert (root / ".env").read_text(encoding="utf-8") == (existing_settings or template)
     assert (
         calls
-        == [
-            [str(python), "-m", "pip", "install", "-r", str(root / "requirements-core.lock")],
-            [str(python), "-m", "pip", "install", "--no-deps", "-e", str(root)],
-        ]
+        == (
+            [
+                [
+                    str(python),
+                    "-m",
+                    "pip",
+                    "install",
+                    *[
+                        item
+                        for name in (
+                            ("requirements-oracle.lock", "requirements-redis.lock")
+                            if office
+                            else ("requirements-core.lock",)
+                        )
+                        for item in ("-r", str(root / name))
+                    ],
+                ],
+                [str(python), "-m", "pip", "install", "--no-deps", "-e", str(root)],
+            ]
+            + (
+                [
+                    [
+                        str(python),
+                        "-c",
+                        "from nl2sql.bootstrap.office_checks import require_sqlite_runtime; require_sqlite_runtime()",
+                    ]
+                ]
+                if office
+                else []
+            )
+        )
         * 2
     )
 

@@ -6,6 +6,7 @@ from datetime import date
 import pytest
 from nl2sql.application.query.compiler import Compiler
 from nl2sql.application.query.planning import PlanValidator
+from nl2sql.application.results import format_rows
 from nl2sql.domain.models import (
     DateRange,
     Failure,
@@ -35,7 +36,7 @@ def test_half_open_event_range_and_multiple_metrics(resources):
         resources, metrics=["payment_amount", "payment_fee", "net_payments", "fee_rate"]
     )
     raw = run_plan(resources, plan)
-    rows = resources.service._format(raw.rows, plan, resources.service.store.snapshot())
+    rows = format_rows(raw.rows, plan, resources.service.compiler.catalog)
     assert rows == (
         {
             "region": "Demo North",
@@ -68,7 +69,7 @@ def test_zero_ratio_denominator_is_null(resources):
     condition = Predicate(field="customer_id", op="eq", value=TypedValue(kind="text", value="C004"))
     plan = payment_plan(resources, metrics=["fee_rate"], filters=condition)
     result = run_plan(resources, plan)
-    assert resources.service._format(result.rows, plan, resources.service.store.snapshot()) == (
+    assert format_rows(result.rows, plan, resources.service.compiler.catalog) == (
         {"region": "Demo South", "fee_rate": None},
     )
 
@@ -88,7 +89,7 @@ def test_snapshot_range_retains_each_reporting_date(resources):
 
 
 def test_range_coverage_accepts_open_ended_catalog_without_date_overflow(resources):
-    catalog = resources.service.store.snapshot().model_copy(update={"effective_to": date.max})
+    catalog = resources.service.compiler.catalog.model_copy(update={"effective_to": date.max})
     plan = payment_plan(resources)
     principal = resources.auth.principals["analyst"]
     validated = PlanValidator(catalog).validate(plan, principal)
@@ -216,7 +217,7 @@ def test_extended_operator_dialects_and_sql_tamper_rejection(resources, operatio
         plan = payment_plan(resources, metrics=["fee_rate"])
     else:
         plan = payment_plan(resources)
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     principal = resources.auth.principals["analyst"]
     query = Compiler(catalog).compile(
         PlanValidator(catalog).validate(plan, principal), principal, dialect
@@ -252,7 +253,7 @@ def test_combined_current_accounts_cannot_be_presented_as_historical(resources):
 def test_invalid_derived_metric_contracts_never_activate(resources, change):
     from nl2sql.application.catalog import validate_catalog
 
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     metrics = []
     for metric in catalog.metrics:
         if metric.id == "payment_fee":
@@ -282,7 +283,7 @@ def test_aggregate_cte_rejects_modified_outer_projection(resources, dialect):
     principal = resources.auth.principals["analyst"]
     query = run_plan(resources, plan_for(resources, operation="preaggregate"), dialect="oracle")
     if dialect == "sqlite":
-        catalog = resources.service.store.snapshot()
+        catalog = resources.service.compiler.catalog
         query = Compiler(catalog).compile(query.validated_plan, principal)
     tree = sqlglot.parse_one(query.sql, read=dialect)
     tree.set(

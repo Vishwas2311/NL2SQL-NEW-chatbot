@@ -4,6 +4,7 @@ import json
 
 from nl2sql.application.ports import Candidate
 from nl2sql.domain.models import Catalog, Failure, Principal, QueryPlan
+from nl2sql.domain.planning import PendingQuestion, PlanningDecision
 from nl2sql.domain.search import SearchRecord, authorized_records, schema_records
 
 
@@ -13,6 +14,9 @@ def build_context(
     candidates: tuple[Candidate, ...],
     records: tuple[SearchRecord, ...] | None = None,
     max_bytes: int = 64_000,
+    previous: QueryPlan | None = None,
+    pending: PendingQuestion | None = None,
+    include_schema: bool = True,
 ) -> str:
     """Only approved, authorized semantic records; descriptions remain untrusted data."""
     ids = {candidate.metric_id for candidate in candidates} & set(principal.metrics)
@@ -68,7 +72,6 @@ def build_context(
         "views": views,
         "default_as_of": catalog.default_as_of.isoformat(),
         "fiscal_start_month": catalog.fiscal_start_month,
-        "schema": QueryPlan.model_json_schema(),
         "dimensions": [
             item.model_dump() for item in catalog.dimensions if "dimension:" + item.id in visible
         ],
@@ -81,12 +84,21 @@ def build_context(
         "truncated": False,
     }
 
+    if include_schema:
+        context["schema"] = PlanningDecision.model_json_schema()
+    if previous is not None:
+        context["previous_plan"] = previous.model_dump(mode="json")
+    if pending is not None:
+        context["pending_question"] = pending.model_dump(mode="json")
+
     def serialize() -> str:
         return json.dumps(context, separators=(",", ":"), sort_keys=True)
 
     encoded_bytes = len(serialize().encode())
     if encoded_bytes > max_bytes:
-        raise Failure("MODEL_CONTEXT_BUDGET", "Certified planning context exceeds its budget.", 422)
+        raise Failure(
+            "MODEL_CONTEXT_BUDGET", "Certified planning context exceeds its budget.", "invalid"
+        )
     evidence: list[dict[str, object]] = []
     context["schema_records"] = evidence
     for record in selected:

@@ -1,7 +1,62 @@
 # Setup and configuration
 
+## Office laptop preparation (2026-10-24)
+
+Run `python3.13 setup_env.py --office` to create a fresh native environment and install
+the pinned application, Oracle and Redis clients. Office setup checks the linked SQLite
+library for the WAL-reset fix; Python 3.13 alone is insufficient. Use SQLite 3.51.3+
+or the documented 3.50.7/3.44.6 maintenance backport. A pip dependency update does not
+replace the standard library SQLite engine. Recreate the environment on macOS;
+do not copy the Windows `.venv`. Native Ladybug loading must be checked on the actual Mac.
+
+Copy `config/office.example.json` to protected settings and change its storage paths to
+approved absolute local paths outside OneDrive/iCloud/network shares. Its loopback model
+ports are examples, not running services. Copy `config/office.env.example` separately
+to a private environment file; the synthetic `.env` and two-worker VM profile are different
+profiles. Set the exact model ID. Embeddings and disk snapshots default disabled; if
+enabling hybrid retrieval, configure its approved encoder ID, immutable version and dimension.
+The office profile uses one worker, eight overall chat slots and one inference slot;
+these are provisional limits for the upgraded target machine, not a measured capacity claim.
+the Redis VM profile remains available separately for qualified concurrent deployment.
+
+The selected private `--env-file` now reaches application settings, Oracle discovery,
+Oracle query accounts and reviewer trust. Precedence is actual environment > explicitly
+selected environment file > JSON > defaults. No parent-directory dotenv is searched and
+dotenv interpolation is disabled. Keep real secrets in the approved secret manager when available.
+
+Restricted HTTP planning requires `model_token_count_endpoint` on the same origin as
+`model_endpoint`. It receives the complete chat-completion body and returns
+`{"input_tokens": 123}` using that runtime's tokenizer/chat template. The implementation
+matches llama.cpp's documented `/v1/chat/completions/input_tokens` contract; other runtimes
+must provide that contract or use a trusted provider adapter. The counter is not another
+generation call. The application reserves `model_max_tokens` plus
+`model_token_safety_margin` within `model_context_tokens`, removes optional rich evidence
+once if necessary and rejects a request that still cannot fit. Byte limits remain an
+additional bound. Synthetic mock HTTP tests without a counter do not qualify a real model.
+See the [official server contract](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md#post-v1chatcompletionsinput_tokens).
+
+With an approved embedding endpoint or registered installed local encoder, the application
+automatically builds metadata vectors and embedded Ladybug exact-cosine projections. FAISS
+and its NumPy/native adapters have been removed. No extension, model download or vector
+server is installed. Vectors use authorized metric partitions, never business rows. Native
+vector projections are rebuilt in memory at activation; the optional protected encoder cache
+persists vectors across restarts and bundle digests still verify compatibility. Each live
+partition has a 32 MiB native buffer, multiplied by grant partitions and API workers.
+`index_storage_path` defaults null in the office example. If approved restart caching is
+needed, select a marked private path. Metadata checkpoints run during preparation, outside
+the encoding lock; ordinary question cache misses never rewrite the disk snapshot.
+Checkpoints persist only the explicitly selected metadata hashes/vectors, not question vectors.
+
+Use the office launcher described in OPERATIONS.md after configuring approvals and endpoints.
+The launcher supervises monitoring outside API workers. Bare `serve` never starts a scheduler.
+
+
+See [System walkthrough](APP_WALKTHROUGH.md) for how the selected query backend, embedded
+LadybugDB graph, Redis admission and optional model/embedding adapters work together.
+Selecting a provider does not establish live office qualification.
+
 This is a synthetic Windows/Python 3.13 development build. Company Oracle, corporate identity,
-real inference, installed embedding runtimes and native FAISS require separate qualification.
+real inference and installed embedding runtimes require separate qualification on the target Mac/VM.
 Original numbered designs are consolidated in [Design reference](DESIGN_REFERENCE.md). UI assets are preserved.
 
 The sole UI reference is `UI/*/existing_ui_reference/`; the byte-identical
@@ -49,6 +104,7 @@ and Sentinel discovery are not implemented by this standalone-service adapter.
 | redis_ca_bundle | Optional approved PEM CA file; allowed only with rediss://; certificate and hostname verification remain required |
 | requests_per_minute | 60 per authenticated tenant/subject across the deployment |
 | max_concurrent_chats | 8 active chat use cases across all workers |
+| max_concurrent_inferences | 1 active model call across all workers; templates bypass this inner limit |
 | max_concurrent_chats_per_principal | 1 active chat per authenticated tenant/subject |
 | admission_lease_seconds | 300; must exceed request_timeout_seconds plus twice redis_timeout_seconds plus 5 seconds |
 | api_workers | 1 for development; VM template 2; allowed 1..16 |
@@ -58,8 +114,15 @@ and Sentinel discovery are not implemented by this standalone-service adapter.
 Each setting maps to its upper-case NL2SQL_ environment name. Shared limits apply
 only to workers using the same Redis service/database and deployment prefix. Grant
 changes do not reset a subject's rate counter or active slot. Both chat routes hold
-slots through planning, execution and persistence; session routes use rate quotas
+outer slots through planning, execution and persistence; session routes use rate quotas
 without taking chat slots. Active-limit rejections still count toward the rate quota.
+Flexible planning takes a second slot only for the provider call, including token counting
+and retries. There is no inference waiting queue. Its excess work receives
+`INFERENCE_CAPACITY`/429 and `Retry-After`; all successful/exceptional exits release the slot.
+One inference per tenant/subject is permitted. Redis inference leases use the same configured
+backend and a separate `<redis_key_prefix>:inference` namespace. There is one shared inference
+handle per API process, retained across catalog replacements. Each of the two Redis handles
+has its own bounded connection pool; allow up to twice `redis_max_connections` per worker.
 CHAT_IN_PROGRESS and CHAT_CAPACITY return 429. Redis failure returns 503; an expired
 lease on completed work returns ADMISSION_EXPIRED/503. A lease is crash recovery,
 not forced cancellation or a guarantee against Redis restart/eviction resetting state.
@@ -74,7 +137,10 @@ environment. No plaintext settings or secrets are serialized into command argume
 All workers on one VM must share the same approved local `data_dir`/`metadata_root`
 and Redis namespace. Keep SQLite databases on a local volume, not an SMB/NFS share.
 Database and Redis pools, in-memory indexes, and model clients are per process:
-total configured query connections are approximately workers times pool size.
+synthetic query connections are approximately workers times `pool_size`. Oracle uses
+`NL2SQL_QUERY_POOL_MAX` instead; its query timeout/result budget likewise use
+`NL2SQL_QUERY_TIMEOUT_MS` and `NL2SQL_QUERY_MAX_RESULT_BYTES`. Active/retiring bundles
+can temporarily own separate pools.
 Existing metadata build limits, including 128 principals per governed bundle and
 128 distinct retrieval grant partitions, still apply. Redis and extra workers do
 not increase those limits; larger deployments need a measured capacity review.
@@ -177,7 +243,7 @@ Precedence is process environment > explicitly selected dotenv > JSON > validate
 No implicit `.env` or parent directory search occurs. The `--env-file` switch applies to application
 settings; metadata commands accept the same switch and must select the same file when staging,
 publishing or monitoring. Supply Oracle/query/discovery credentials and metadata trust anchors through approved
-process-environment injection; their existing separate settings classes never search dotenv files.
+process-environment injection or the same explicitly selected private environment file.
 Corporate secret managers can inject those variables without an application dependency or secret file.
 Validation prints only validity and provider modes; invalid configuration never prints field values.
 
@@ -193,16 +259,15 @@ model settings from `.env.example`, and select that file with the office setting
 Only one application dotenv is selected; files are not merged automatically. The
 development template explicitly selects synthetic SQLite and must not override the
 office Oracle configuration unchanged. Oracle sections in `.env.example` are commented
-**process-environment references**: keep them commented in application dotenv files.
-Their separate settings loaders do not read `--env-file`; uncommenting their account
-variables there causes unknown-setting validation errors. Inject them into the process
-through the approved launcher/secret manager instead. Approval flags remain false in
-examples and attest existing organizational approvals, rather than creating permission.
+references: a protected copy may provide these fields through the same explicitly selected
+file. Actual process environment values still win. Approval flags remain false in examples
+and attest existing organizational approvals, rather than creating database permission.
 The Redis Compose YAML starts only local Redis; it does not configure the separate API.
 
 Model fields: `model_mode`, `model_name`, `model_endpoint`, `approved_model_hosts`, `model_key`,
 `model_output_mode`, `model_timeout_seconds`, `model_retries`, `model_max_tokens`,
-`model_context_bytes`, `model_ca_bundle`. Modes are disabled, scripted, private_http and hosted_http.
+`model_context_bytes`, `model_context_tokens`, `model_token_count_endpoint`,
+`model_token_safety_margin`, `model_ca_bundle`. Modes are disabled, scripted, private_http and hosted_http.
 `register_model` accepts additional trusted application adapters. Authentication is optional bearer
 authentication to the approved endpoint; TLS validation is always enabled. The HTTP contract is
 OpenAI-compatible chat completions. Model tools, wrong IDs, malformed JSON and over-budget replies
@@ -220,7 +285,10 @@ Embedding fields: `embedding_mode` (disabled/fake/local/private_http), `embeddin
 `approved_embedding_hosts`, `embedding_key`, `embedding_local_path`, `index_storage_path`.
 Fake mode is synthetic-only. An installed local runtime must be explicitly registered with
 `register_local_embedding(model_id, factory)`; the factory receives an existing model path and must
-implement the typed encode port. There is no implicit import, server installation or model download.
+implement the typed encode port in every process that uses it. The stock `office` supervisor
+supports disabled/private_http embeddings; direct local registration needs an approved custom
+process composition and is not inherited by spawned workers. There is no implicit import,
+server installation or model download.
 Office runtime integration is unqualified until its real adapter is supplied and tested.
 
 Use the same model ID/version/dimension/normalization at staging, publication and serving.
@@ -230,7 +298,8 @@ late or incomplete batches do not enter the cache. HTTP calls obey bounded trans
 Installed local adapters must implement interruption in their runtime; the wrapper rejects late
 results and explicit cancellation but cannot forcibly interrupt arbitrary third-party Python code.
 
-Retrieval fields are `retrieval_top_k`, `retrieval_max_candidates`, `retrieval_rrf_constant` and
+Retrieval fields are `retrieval_top_k`, `retrieval_max_candidates`, `retrieval_rrf_constant`,
+`retrieval_max_text_bytes` (10,000,000) and `retrieval_max_native_mb` (1,024 per live retriever), plus
 `model_context_bytes`. Exact matching and BM25 remain mandatory. Native search uses bounded
 overfetch and never repeats the Python cosine scan. Rich records contain certified semantic
 evidence, not unapproved physical inventory. Scope filtering removes hidden records and links.
@@ -286,3 +355,69 @@ cleanup using an approved synthetic Oracle environment. Configure corporate iden
 Qualify the existing embedding runtime and actual inference with held-out accuracy and load tests.
 Choose freshness/startup gates and scheduler/alert/retention ownership. Review final test and
 performance evidence before release. No deployment, public publication or remote push is authorized.
+
+
+## Embedded graph configuration
+
+LadybugDB 0.21.2 requires no graph endpoint, API key or server process.
+`NL2SQL_GRAPH_BUFFER_MB` sets the native buffer pool per live graph handle: default
+64 MiB, allowed 32?1024 MiB. Native query threads are fixed to one. This setting
+is not a process RSS cap; workers and retained bundles multiply memory costs.
+`NL2SQL_GRAPH_NATIVE_DIR` optionally names an approved Windows directory containing
+required native dependencies (including OpenSSL 3 for the current wheel). Never
+use an untrusted or upload-writable DLL directory. Example environment files document
+both settings. Files reside under the configured `data_dir/graphs`, keyed by catalog digest.
+See OPERATIONS.md for recovery and ARCHITECTURE.md for ownership and versioning.
+
+
+## Planning decisions, storage upgrades and office admission
+
+HTTP inference requests the object-shaped `PlanningDecision` schema:
+`{"outcome": <QueryPlan>}` or
+`{"outcome":{"kind":"clarification","reason":"period","metric_ids":[]}}`.
+Reasons are metric/period/dimension/filter/entity. The application verifies suggested metric IDs
+against authorized retrieved candidates and supplies the question wording; a clarification executes
+no SQL. Existing direct QueryPlan responses remain readable by the adapter. Default `json_schema`
+mode carries the schema in response_format rather than repeating it in metadata. Other output
+modes include the schema in the bounded context. Runtime token counting and output reserve remain
+mandatory for restricted HTTP inference.
+
+An owned last plan and one pending bounded question may enter model context only under the current
+catalog and scope identity. Changed grants clear model-visible context; supported deterministic
+follow-ups still revalidate against the current scope. Unusable old context is discarded rather
+than blocking a new complete question. Prior result rows and transcripts are never planning authority.
+
+Local repositories use SQLite user_version 3. Version 0 tables are adopted, format tags added in
+version 2, and pending-question/scope columns added in version 3. Legacy metadata format 1 retains
+its signed identity; new format 2 preserves field presence while explicitly retaining timestamps.
+Unknown future database/record formats fail closed. Back up before upgrading; downgrade by restoring
+a coherent previous-release backup, not by deleting columns or lowering user_version.
+
+The 20-user target is a workload size, not a model concurrency setting. The office example starts
+with eight overall chats and one inference; global overload returns CHAT_CAPACITY/429 and Retry-After, without an unbounded
+waiting queue. The two chat endpoints share admission and success/failure pipeline metrics.
+Application deadlines begin before authentication, bound reload-lock waits, and cannot be extended
+by nested chat calls. Late resource candidates are closed rather than activated. A native provider
+must still implement its own interruption; these controls do not forcibly kill arbitrary Python code.
+
+FTS preflight counts metric and schema document text across unique grant partitions. Native vector
+buffer ceilings are checked before encoding/allocation; vector components are bounded before native
+index allocation. These are allocation/input budgets, not process RSS caps. Workers and overlapping
+bundles multiply costs; measure the actual SLM and target machine before raising limits.
+
+RuntimeFactory captures Oracle query configuration once during composition. Discovery and query
+accounts remain separate. Office preflight rejects known unpatched SQLite, relative/repository
+storage paths and recognizable synchronized folders. It cannot certify filesystem ACLs, encryption
+or an arbitrary mounted filesystem; the company must approve the actual local volume.
+
+Official SQLite advisory: https://sqlite.org/wal.html#walresetbug.
+
+The office examples target `model_context_tokens=100000` in both JSON and environment
+configuration. The generic application/development default remains 8192 for other runtimes.
+Actual process environment overrides the selected environment file, which overrides JSON;
+clear stale values when qualifying the office profile. This configuration does not allocate
+model memory or establish native model support. Verify effective context per request/slot,
+the same-origin runtime token counter and output reserve on the selected inference runtime.
+`model_context_bytes` remains a separate 64000-byte metadata bound by default; a 100K token
+ceiling is not a requirement to fill it. Existing 60-second model and 120-second office-turn
+budgets still apply; use measured prefill/generation behavior before changing timeout policy.

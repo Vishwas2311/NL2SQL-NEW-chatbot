@@ -7,24 +7,21 @@ from dataclasses import dataclass
 from threading import Event
 from typing import Literal, Protocol
 
-from nl2sql.application.query.security import SQLValidator
 from nl2sql.domain.models import (
     Answer,
     Capability,
-    Catalog,
     EntityMapping,
     ExecutionResult,
     Principal,
     QueryPlan,
 )
+from nl2sql.domain.planning import ClarificationRequest, PendingQuestion
 from nl2sql.domain.search import SearchRecord
 from nl2sql.domain.sessions import Message, SessionState, SessionSummary
 
 
 class QueryExecutor(Protocol):
     """Oracle and SQLite accept only approved query capabilities."""
-
-    validator: SQLValidator
 
     @property
     def dialect(self) -> Literal["sqlite", "oracle"]:
@@ -118,7 +115,7 @@ class ApplicationResources(Protocol):
 class ModelResult:
     """Provider-measured usage; unavailable token counts remain unknown."""
 
-    plan: QueryPlan
+    plan: QueryPlan | ClarificationRequest
     calls: int
     latency_ms: float
     input_tokens: int | None = None
@@ -165,14 +162,6 @@ class IdentityProvider(Protocol):
 
     def assert_current(self, principal: Principal) -> None:
         """Reject a principal whose server-owned permissions have changed or been revoked."""
-        ...
-
-
-class CatalogProvider(Protocol):
-    """Read one previously verified immutable catalog."""
-
-    def snapshot(self) -> Catalog:
-        """Return the pinned snapshot."""
         ...
 
 
@@ -223,6 +212,7 @@ class SessionRepository(Protocol):
         answer: Answer,
         plan: QueryPlan | None,
         scope_digest: str = "",
+        pending: PendingQuestion | None = None,
     ) -> None:
         """Atomically commit messages and context if the version is current."""
         ...

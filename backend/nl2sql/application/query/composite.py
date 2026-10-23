@@ -20,6 +20,7 @@ def combine_query(
     validated: ValidatedPlan,
     principal: Principal,
     catalog: Catalog,
+    graph: JoinGraph | None = None,
 ) -> CompiledQuery:
     """Component policy filters run before preaggregation; outer policy is also mandatory."""
     plan = validated.plan
@@ -48,8 +49,9 @@ def combine_query(
             value = exp.Coalesce(this=value, expressions=[exp.Literal.number(0)])
         selected.append(value.as_(key, quoted=True))
     query = exp.select(*selected).from_(view.root)
-    targets = {dimensions[key].table for key in plan.dimensions} | {scope.table}
-    for edge in JoinGraph(catalog).resolve(view, targets):
+    for edge in (graph or JoinGraph(catalog)).resolve(
+        view, {dimensions[key].table for key in plan.dimensions} | {scope.table}
+    ):
         query = query.join(
             edge.right,
             join_type="INNER",

@@ -89,7 +89,22 @@ class BundleSpec(FrozenModel):
     @property
     def id(self) -> str:
         """Approvals bind every source, mapping, permission and derived-artifact reference."""
-        return digest(self.model_dump_json())
+        return digest(self.payload_json())
+
+    def payload_json(self) -> str:
+        """Keep original field presence so future defaulted fields do not rewrite identity."""
+        inventory = self.inventory.model_copy(
+            update={"discovered_at": self.inventory.discovered_at}
+        )
+        stored = self.model_copy(update={"inventory": inventory, "created_at": self.created_at})
+        return stored.model_dump_json(exclude_unset=True)
+
+    @classmethod
+    def read_payload(cls, payload: str, version: int) -> "BundleSpec":
+        """V1 full payloads and V2 presence-preserving payloads share the original contracts."""
+        if version not in (1, 2):
+            raise ValueError("Unsupported metadata payload format")
+        return cls.model_validate_json(payload)
 
 
 class MetadataRecord(FrozenModel):

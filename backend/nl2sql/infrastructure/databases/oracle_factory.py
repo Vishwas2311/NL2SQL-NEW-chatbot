@@ -7,7 +7,7 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nl2sql.application.query.security import SQLValidator
-from nl2sql.domain.models import Failure, Principal
+from nl2sql.domain.models import MAX_JOIN_EDGES, Failure, Principal
 from nl2sql.infrastructure.databases.oracle import OracleAdapter, OracleConfig, OracleConnection
 
 PROCEDURE = r"^[A-Za-z][A-Za-z0-9_$#]*(?:\.[A-Za-z][A-Za-z0-9_$#]*){1,2}$"
@@ -70,7 +70,10 @@ class DBAContextPolicy:
 
 
 def oracle_executor(
-    validator: SQLValidator, settings: OracleExecutionSettings | None = None
+    validator: SQLValidator,
+    settings: OracleExecutionSettings | None = None,
+    *,
+    max_join_edges: int = MAX_JOIN_EDGES,
 ) -> OracleAdapter:
     """Flags record outside approvals; no connection can precede their explicit configuration."""
     settings = settings or OracleExecutionSettings()
@@ -86,7 +89,7 @@ def oracle_executor(
         raise Failure(
             "ORACLE_QUERY_NOT_APPROVED",
             "Oracle query access and DBA context/grants require approval.",
-            403,
+            "denied",
         )
     if any(
         value is None
@@ -99,7 +102,9 @@ def oracle_executor(
         )
     ):
         raise Failure(
-            "ORACLE_CONFIGURATION", "Approved Oracle query configuration is incomplete.", 503
+            "ORACLE_CONFIGURATION",
+            "Approved Oracle query configuration is incomplete.",
+            "unavailable",
         )
     assert settings.dsn is not None and settings.user is not None and settings.password is not None
     assert settings.apply_procedure is not None and settings.reset_procedure is not None
@@ -114,9 +119,12 @@ def oracle_executor(
     )
     try:
         return OracleAdapter(
-            config, validator, DBAContextPolicy(settings.apply_procedure, settings.reset_procedure)
+            config,
+            validator,
+            DBAContextPolicy(settings.apply_procedure, settings.reset_procedure),
+            max_join_edges=max_join_edges,
         )
     except oracledb.Error as error:
         raise Failure(
-            "ORACLE_UNAVAILABLE", "The approved query pool is unavailable.", 503
+            "ORACLE_UNAVAILABLE", "The approved query pool is unavailable.", "unavailable"
         ) from error

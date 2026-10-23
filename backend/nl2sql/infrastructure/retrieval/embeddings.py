@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict
 
 from nl2sql.application.ports import EmbeddingProvider
 from nl2sql.domain.models import Failure
-from nl2sql.infrastructure.inference.model import PrivateHTTPModel
+from nl2sql.infrastructure.http_policy import private_client, private_endpoint
 from nl2sql.infrastructure.retrieval.embedding_cache import (
     load_vectors,
     restricted_path,
@@ -59,13 +59,8 @@ class PrivateEmbedding:
     """Reuse the private inference host/TLS gate; no public embedding egress mode."""
 
     def __init__(self, settings: Settings, client: httpx.Client | None = None) -> None:
-        gate = settings.model_copy(
-            update={
-                "model_endpoint": settings.embedding_endpoint,
-                "approved_model_hosts": settings.approved_embedding_hosts,
-            }
-        )
-        self.transport = PrivateHTTPModel(gate, client)
+        private_endpoint(settings.embedding_endpoint, settings.approved_embedding_hosts)
+        self.client = client or private_client(settings.model_ca_bundle)
         self.settings = settings
 
     def encode(self, texts: tuple[str, ...]) -> tuple[tuple[float, ...], ...]:
@@ -78,10 +73,10 @@ class PrivateEmbedding:
             (REQUEST_DEADLINE.get() or float("inf")) - time.time(),
         )
         if remaining <= 0:
-            raise Failure("EMBEDDING_TIMEOUT", "Optional encoding timed out.", 504)
+            raise Failure("EMBEDDING_TIMEOUT", "Optional encoding timed out.", "timeout")
         deadline = time.monotonic() + remaining
         try:
-            with self.transport.client.stream(
+            with self.client.stream(
                 "POST",
                 self.settings.embedding_endpoint or "",
                 headers=headers,
@@ -104,12 +99,12 @@ class PrivateEmbedding:
             return tuple(item.embedding for item in reply.data)
         except httpx.HTTPError as error:
             raise Failure(
-                "EMBEDDING_UNAVAILABLE", "Optional encoding is unavailable.", 503
+                "EMBEDDING_UNAVAILABLE", "Optional encoding is unavailable.", "unavailable"
             ) from error
 
     def close(self) -> None:
         """Close owned HTTP connections after runtime users drain."""
-        self.transport.close()
+        self.client.close()
 
 
 class ManagedEncoder:
@@ -141,6 +136,9 @@ class ManagedEncoder:
                 )
             )
 
+        while len(self._cache) > settings.embedding_cache_entries:
+            self._cache.popitem(last=False)
+
     def encode(self, texts: tuple[str, ...]) -> tuple[tuple[float, ...], ...]:
         """The existing encoder port remains compatible with injected installed providers."""
         return self.encode_bounded(texts)
@@ -165,7 +163,7 @@ class ManagedEncoder:
             timeout=max(0, end - time.time())
         )
         if not acquired:
-            raise Failure("EMBEDDING_TIMEOUT", "Optional encoding is busy.", 504)
+            raise Failure("EMBEDDING_TIMEOUT", "Optional encoding is busy.", "timeout")
         try:
             keys = tuple(
                 hashlib.sha256((self.identity + text).encode()).hexdigest() for text in texts
@@ -192,27 +190,43 @@ class ManagedEncoder:
                 self._cache.move_to_end(key)
             while len(self._cache) > self.settings.embedding_cache_entries:
                 self._cache.popitem(last=False)
-            if missing and self.settings.index_storage_path is not None:
-                try:
-                    save_vectors(
-                        restricted_path(self.settings.index_storage_path, self.identity),
-                        self.identity,
-                        self.settings.embedding_dimension,
-                        self.settings.embedding_normalization,
-                        dict(self._cache),
-                    )
-                except OSError:
-                    logging.getLogger("nl2sql").warning("embedding_cache_write_failed")
             return tuple(vectors[key] for key in keys)
         finally:
             self._lock.release()
 
+    def checkpoint(self, metadata_texts: tuple[str, ...]) -> None:
+        """Persist a bounded restart cache during preparation, never on query cache misses."""
+        root = self.settings.index_storage_path
+        if root is None:
+            return
+        # A finite float uses fewer than 32 JSON bytes; reserve envelope and hash space.
+        limit = min(
+            self.settings.embedding_cache_entries,
+            19_000_000 // (self.settings.embedding_dimension * 32 + 80),
+        )
+        allowed = {
+            hashlib.sha256((self.identity + text).encode()).hexdigest() for text in metadata_texts
+        }
+        with self._lock:
+            keys = tuple(key for key in self._cache if key in allowed)[-limit:] if limit else ()
+            entries = {key: self._cache[key] for key in keys}
+        try:
+            save_vectors(
+                restricted_path(root, self.identity),
+                self.identity,
+                self.settings.embedding_dimension,
+                self.settings.embedding_normalization,
+                entries,
+            )
+        except (OSError, ValueError):
+            logging.getLogger("nl2sql").warning("embedding_cache_write_failed")
+
     @staticmethod
     def _check(deadline: float, cancelled: Event | None) -> None:
         if cancelled is not None and cancelled.is_set():
-            raise Failure("EMBEDDING_CANCELLED", "Optional encoding was cancelled.", 409)
+            raise Failure("EMBEDDING_CANCELLED", "Optional encoding was cancelled.", "conflict")
         if time.time() >= deadline:
-            raise Failure("EMBEDDING_TIMEOUT", "Optional encoding timed out.", 504)
+            raise Failure("EMBEDDING_TIMEOUT", "Optional encoding timed out.", "timeout")
 
     def close(self) -> None:
         """Close owned HTTP resources; the registrar owns an installed local runtime."""

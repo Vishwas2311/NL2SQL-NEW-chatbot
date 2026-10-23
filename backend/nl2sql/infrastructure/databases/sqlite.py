@@ -34,7 +34,7 @@ def _check_integer_binds(values: Iterable[Bind]) -> None:
 def _check_deadline(deadline: float) -> None:
     """Short queries may finish without invoking SQLite's periodic progress callback."""
     if time.time() >= deadline:
-        raise Failure("QUERY_TIMEOUT", "The query timed out.", 504)
+        raise Failure("QUERY_TIMEOUT", "The query timed out.", "timeout")
 
 
 class SQLiteDatabase:
@@ -62,7 +62,7 @@ class SQLiteDatabase:
         try:
             connection = self._pool.get(timeout=max(0.001, timeout))
         except Empty as error:
-            raise Failure("POOL_EXHAUSTED", "The query service is busy.", 503) from error
+            raise Failure("POOL_EXHAUSTED", "The query service is busy.", "unavailable") from error
         spans = STAGE_SPANS.get()
         if spans is not None:
             spans["pool_queue_ms"] = (
@@ -83,7 +83,7 @@ class SQLiteDatabase:
         parameters = dict(query.binds)
         _check_integer_binds(parameters.values())
         end = min(capability.expires_at, time.time() + self.settings.query_timeout_seconds)
-        if len(query.validated_plan.proof.relationships) > 5:
+        if len(query.validated_plan.proof.relationships) > self.settings.max_join_edges:
             raise Failure("PREFLIGHT_REJECTED", "The query exceeds the resource budget.")
         start = time.perf_counter()
         tables = set(query.validated_plan.proof.tables)
@@ -123,18 +123,20 @@ class SQLiteDatabase:
                         value: object = row[key]
                         if not isinstance(value, (str, int, type(None))):
                             raise Failure(
-                                "RESULT_TYPE", "The database returned an unsupported value.", 503
+                                "RESULT_TYPE",
+                                "The database returned an unsupported value.",
+                                "unavailable",
                             )
                         values[key] = cast(Scalar, value)
                     byte_count += len(json.dumps(values).encode())
                     if byte_count > self.settings.max_result_bytes:
-                        raise Failure("RESULT_LIMIT", "Please narrow the result set.", 413)
+                        raise Failure("RESULT_LIMIT", "Please narrow the result set.", "too_large")
                     output.append(values)
         except sqlite3.Error as error:
             if time.time() >= end:
-                raise Failure("QUERY_TIMEOUT", "The query timed out.", 504) from error
+                raise Failure("QUERY_TIMEOUT", "The query timed out.", "timeout") from error
             raise Failure(
-                "DB_UNAVAILABLE", "The database is temporarily unavailable.", 503
+                "DB_UNAVAILABLE", "The database is temporarily unavailable.", "unavailable"
             ) from error
         return ExecutionResult(
             rows=tuple(output),
@@ -174,9 +176,9 @@ class SQLiteDatabase:
                 _check_deadline(end)
         except sqlite3.Error as error:
             if time.time() >= end:
-                raise Failure("QUERY_TIMEOUT", "The query timed out.", 504) from error
+                raise Failure("QUERY_TIMEOUT", "The query timed out.", "timeout") from error
             raise Failure(
-                "DB_UNAVAILABLE", "Entity lookup is temporarily unavailable.", 503
+                "DB_UNAVAILABLE", "Entity lookup is temporarily unavailable.", "unavailable"
             ) from error
         return exact_entity(matches)
 

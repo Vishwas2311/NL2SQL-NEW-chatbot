@@ -1,21 +1,24 @@
 """Validated configuration; no default passwords or browser demo-token trust."""
 
 import json
+import os
 import re
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
+from dotenv import dotenv_values
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import (
     BaseSettings,
-    DotEnvSettingsSource,
     EnvSettingsSource,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
 
-from nl2sql.domain.models import FrozenModel, Principal
+from nl2sql.domain.models import MAX_JOIN_EDGES, FrozenModel, Principal
 
 
 class TokenGrant(FrozenModel):
@@ -28,6 +31,8 @@ class TokenGrant(FrozenModel):
 class RetrievalOptions(FrozenModel):
     """Bounded runtime retrieval budgets shared with signed bundle construction."""
 
+    max_text_bytes: int = Field(default=10_000_000, ge=1024, le=100_000_000)
+    max_native_mb: int = Field(default=1024, ge=32, le=8192)
     top_k: int = Field(default=10, ge=1, le=50)
     max_candidates: int = Field(default=20, ge=1, le=100)
     rrf_constant: int = Field(default=60, ge=1, le=1000)
@@ -38,6 +43,8 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="NL2SQL_", env_file=None, extra="forbid")
     data_dir: Path = Path(".local")
+    graph_native_dir: Path | None = None
+    graph_buffer_mb: int = Field(default=64, ge=32, le=1024)
     catalog_path: Path = Path("metadata/synthetic/catalog.json")
     catalog_digest: str = ""
     metadata_root: Path | None = None
@@ -50,7 +57,7 @@ class Settings(BaseSettings):
     max_rows: int = Field(default=1000, ge=1, le=1000)
     max_metrics: int = Field(default=5, ge=1, le=5)
     max_dimensions: int = Field(default=5, ge=1, le=5)
-    max_join_edges: int = Field(default=6, ge=0, le=6)
+    max_join_edges: int = Field(default=MAX_JOIN_EDGES, ge=0, le=MAX_JOIN_EDGES)
     max_result_bytes: int = Field(default=1_000_000, ge=1000, le=10_000_000)
     query_timeout_seconds: float = Field(default=3, gt=0, le=30)
     request_timeout_seconds: float = Field(default=15, gt=0, le=120)
@@ -65,6 +72,9 @@ class Settings(BaseSettings):
     model_max_tokens: int = Field(default=1200, ge=100, le=4000)
     model_output_mode: Literal["json_schema", "json_object", "text_json"] = "json_schema"
     model_context_bytes: int = Field(default=64_000, ge=16_000, le=256_000)
+    model_context_tokens: int = Field(default=8192, ge=1024, le=1_048_576)
+    model_token_safety_margin: int = Field(default=128, ge=0, le=4096)
+    model_token_count_endpoint: str | None = None
     model_ca_bundle: Path | None = None
     public_model_authorized: bool = False
     data_classification: Literal["synthetic", "restricted"] = "restricted"
@@ -82,6 +92,8 @@ class Settings(BaseSettings):
     embedding_key: SecretStr | None = None
     embedding_local_path: Path | None = None
     index_storage_path: Path | None = None
+    retrieval_max_text_bytes: int = Field(default=10_000_000, ge=1024, le=100_000_000)
+    retrieval_max_native_mb: int = Field(default=1024, ge=32, le=8192)
     retrieval_top_k: int = Field(default=10, ge=1, le=50)
     retrieval_max_candidates: int = Field(default=20, ge=1, le=100)
     retrieval_rrf_constant: int = Field(default=60, ge=1, le=1000)
@@ -94,6 +106,7 @@ class Settings(BaseSettings):
     redis_max_connections: int = Field(default=16, ge=1, le=256)
     redis_ca_bundle: Path | None = None
     max_concurrent_chats: int = Field(default=8, ge=1, le=256)
+    max_concurrent_inferences: int = Field(default=1, ge=1, le=256)
     max_concurrent_chats_per_principal: int = Field(default=1, ge=1, le=16)
     admission_lease_seconds: int = Field(default=300, ge=10, le=600)
     api_workers: int = Field(default=1, ge=1, le=16)
@@ -105,6 +118,8 @@ class Settings(BaseSettings):
     def retrieval_options(self) -> RetrievalOptions:
         """Flattened environment keys retain one typed set of search budgets."""
         return RetrievalOptions(
+            max_text_bytes=self.retrieval_max_text_bytes,
+            max_native_mb=self.retrieval_max_native_mb,
             top_k=self.retrieval_top_k,
             max_candidates=self.retrieval_max_candidates,
             rrf_constant=self.retrieval_rrf_constant,
@@ -130,6 +145,8 @@ class Settings(BaseSettings):
             )
         if self.retrieval_top_k > self.retrieval_max_candidates:
             raise ValueError("Retrieval top K exceeds its candidate budget")
+        if self.model_max_tokens + self.model_token_safety_margin >= self.model_context_tokens:
+            raise ValueError("Model output and safety reserve must leave room for input tokens")
         if self.api_workers > 1 and self.rate_limit_backend != "redis":
             raise ValueError("Multiple API workers require the shared Redis rate limiter")
         if self.max_concurrent_chats_per_principal > self.max_concurrent_chats:
@@ -181,10 +198,29 @@ def load_settings(path: Path | None = None, env_file: Path | None = None) -> Set
     values: object = json.loads(path.read_text(encoding="utf-8-sig")) if path else {}
     if not isinstance(values, dict):
         raise ValueError("Settings must be a JSON object")
-    return Settings.model_validate(
-        {
-            **values,
-            **DotEnvSettingsSource(Settings, env_file=env_file)(),
-            **EnvSettingsSource(Settings)(),
-        }
-    )
+    with selected_environment(env_file):
+        return Settings.model_validate({**values, **EnvSettingsSource(Settings)()})
+
+
+def apply_environment_file(path: Path | None) -> tuple[str, ...]:
+    """An explicitly selected process environment also supplies Oracle and trust adapters."""
+    added: list[str] = []
+    if path is not None:
+        if not path.is_file() or path.stat().st_size > 1_000_000:
+            raise ValueError("Select an existing bounded environment file")
+        for key, value in dotenv_values(path, interpolate=False).items():
+            if value is not None and key not in os.environ:
+                os.environ[key] = value
+                added.append(key)
+    return tuple(added)
+
+
+@contextmanager
+def selected_environment(path: Path | None) -> Generator[None]:
+    """CLI-scoped injection preserves real environment precedence and restores test callers."""
+    added = apply_environment_file(path)
+    try:
+        yield
+    finally:
+        for key in added:
+            os.environ.pop(key, None)

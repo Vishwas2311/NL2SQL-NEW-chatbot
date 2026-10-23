@@ -81,14 +81,16 @@ class Compiler:
         """Recheck proof before lowering; output still requires independent validation."""
         rechecked = self.validator.validate(validated.plan, principal)
         if rechecked != validated:
-            raise Failure("INVALID_PROOF", "Query authorization is no longer valid.", 403)
+            raise Failure("INVALID_PROOF", "Query authorization is no longer valid.", "denied")
         plan = validated.plan
         if plan.operation == "combine":
             components = tuple(
                 self._compile(self.validator.validate(item, principal), principal, dialect)
                 for item in component_plans(plan, self.catalog)
             )
-            return combine_query(components, validated, principal, self.catalog)
+            return combine_query(
+                components, validated, principal, self.catalog, self.validator.graph
+            )
         if plan.ranking is not None:
             core = self._compile(
                 self.validator.validate(plan.model_copy(update={"ranking": None}), principal),
@@ -302,7 +304,9 @@ def execution_policy(catalog: Catalog, validated: ValidatedPlan, dialect: str) -
     """Unsupported security/decimal execution modes fail before any SQL reaches an adapter."""
     view = next(item for item in catalog.views if item.id == validated.plan.view_id)
     if view_policy(view).strategy == "database_context" and dialect != "oracle":
-        raise Failure("POLICY_UNAVAILABLE", "The certified database policy requires Oracle.", 403)
+        raise Failure(
+            "POLICY_UNAVAILABLE", "The certified database policy requires Oracle.", "denied"
+        )
     if dialect == "sqlite" and any(
         field.kind == "decimal"
         for table in catalog.tables

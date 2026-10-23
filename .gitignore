@@ -18,7 +18,10 @@ dist/
 node_modules/
 *.stderr.log
 .env*
+*.env
+*.env.*
 !.env.example
+!*.env.example
 reports/*.xml
 reports/quality-*.txt
 reports/dependency-audit.json
@@ -63,5 +66,11 @@ models/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Generated architecture maps, browser sessions and local visualization output.
+.archify/
+.playwright-cli/
+graphify-out/
+output/
 
 # Maintained documentation lives in docs/; local archives stay under .local/.

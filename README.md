@@ -54,3 +54,38 @@ ACLs, run `python scripts/redis_local.py`, then
 with `python scripts/check.py --redis-env .local/redis/test.env`.
 See [Operations](docs/OPERATIONS.md#redis-verification) for synthetic startup,
 shared rate/active-chat limits, failure recovery and session-retention maintenance.
+
+For office transfer, `python3.13 setup_env.py --office` includes pinned Oracle/Redis clients.
+Recreate `.venv` on the Mac. After configuring protected settings, approved endpoints and
+signed metadata review, start automatic resource preparation and monitoring:
+
+```text
+python -m nl2sql office --settings /approved/office.json --env-file /approved/office.env
+```
+
+See OPERATIONS.md for first-time certification. You do not build graph/vector indexes by
+hand. FAISS is removed; configured metadata vectors use embedded Ladybug. The launcher
+never invents business definitions/access approval and downloads no model weights.
+
+
+Architecture remediation (24 October 2026) adds versioned storage upgrades, typed model
+clarification, current-scope follow-up context, complete schema-text/native-buffer preflight and
+shared request/error handling. The office template defaults to exact/BM25 retrieval; embeddings
+remain optional and are built automatically when approved and enabled. Use private copies of
+`config/office.example.json` and the numbered `config/office.env.example`.
+
+Office setup checks the actual linked SQLite library for the WAL-reset fix. Python's version
+label alone is insufficient; use an approved Python 3.13 build with SQLite 3.51.3+ or a documented
+patched backport. Restricted startup rejects source-tree/synchronized/relative storage paths.
+No company Oracle/model connection, weights download, transfer, push or deployment is performed
+by these fixes. Consult OPERATIONS.md before upgrading an existing metadata/session repository.
+
+The [remediation report](reports/architecture-remediation-2026-10-24.md) maps all 16 review
+findings to implementation, tests and the remaining office qualification requirements.
+
+Office qualification now targets a 100000-token model in both configuration examples.
+Eight bounded chat turns share one inference slot initially; exact templates bypass the
+model slot while retaining execution/session/per-user protections. These are provisional
+settings, not measured office capacity. See OPERATIONS.md for the real-model/hardware gates.
+The [office qualification update](reports/office-qualification-update-2026-10-24.md) records
+the six roadmap items, completed local work and pending external qualification.

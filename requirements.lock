@@ -22,7 +22,6 @@ iniconfig==2.3.1
 isort==9.0.2
 mccabe==0.7.0
 mypy_extensions==1.1.0
-networkx==3.7
 nodeenv==1.11.0
 opentelemetry-api==1.45.1
 oracledb==26.0.1
@@ -48,8 +47,8 @@ ruff==0.17.1
 sqlglot==30.23.0
 starlette==1.8.0
 tomlkit==0.15.1
-types-networkx==3.6.1.20261006
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uvicorn==0.54.0
 virtualenv==21.14.7
+ladybug==0.21.2

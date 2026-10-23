@@ -1,5 +1,8 @@
 # Code structure
 
+The [system walkthrough](APP_WALKTHROUGH.md) maps these packages to metadata setup, live
+requests and monitoring. Keep the ownership map and that explanation aligned when changing code.
+
 The package is organized by ownership and dependency direction. Public HTTP routes,
 CLI commands, serialized catalogs and session records retain their existing contracts.
 Internal Python imports moved to the owning packages; no legacy forwarding modules
@@ -9,14 +12,21 @@ were added. `python -m nl2sql` remains the stable command entry point.
 backend/nl2sql/
   domain/                 # Pydantic business, physical, session and metadata contracts
   application/
-    chat.py               # Authenticated reporting use case
+    chat.py               # Authenticated reporting orchestration over one pinned Catalog
+    inference.py          # Model call admission, independent from full-turn admission
+    routing.py            # Catalog templates and bounded deterministic follow-ups
+    results.py            # Exact Decimal financial row formatting
     sessions.py           # Owned session operations and response-time reauthorization
     ports.py              # Identity, query, session, retrieval, model and quota contracts
     context.py            # Authorized model-context construction
-    catalog.py            # Semantic validation and certified join graph
+    catalog.py            # Semantic validation and certified join policy
+    graph.py              # Typed runtime traversal port and pure structural checks
     query/                # Plan validation, compiler and independent SQL validator
     metadata/             # Certification, drift, publication/refresh use cases and ports
   infrastructure/
+    storage.py            # Ordered SQLite upgrades and sanitized storage failures
+    http_policy.py        # Shared private endpoint/client policy
+    graph.py              # Immutable embedded LadybugDB projections and native lifecycle
     auth.py               # Local token/JWT identity adapter
     sessions.py           # Transactional SQLite session adapter
     rate_limit.py         # Memory/Redis rate quotas, active-chat leases and capability probe
@@ -35,7 +45,7 @@ backend/nl2sql/
 tests/
   unit/                   # Isolated catalog, retrieval and quota behavior
   contracts/              # API shapes and injected provider/Oracle contracts
-  integration/            # Real local SQLite/workflows; explicit local Redis suite
+  integration/            # Real local SQLite/Ladybug/workflows; explicit local Redis suite
   security/               # Permission, compiler mutation and capability denials
   evaluation/             # Evaluation harness checks
   tooling/                # Import boundaries, worker/setup, export and UI preservation
@@ -96,3 +106,20 @@ business result cache, identity grants or approval authority. This distinction
 preserves current revocation and publication controls while enabling shared
 admission. See CONFIGURATION.md and OPERATIONS.md for the supported launcher,
 Redis prerequisites, failure behavior and qualification limits.
+
+`typings/ladybug/__init__.pyi` narrows the native API used by the adapter for strict
+static analysis. No native driver is imported from application or domain code.
+
+`cli/office.py` owns the foreground supervisor; `cli/metadata.py` owns automatic preparation
+through signed lifecycle operations. `infrastructure/inference/token_budget.py` preflights
+runtime tokens. `infrastructure/retrieval/vector_index.py` owns embedded Ladybug exact-cosine
+projections, replacing the removed FAISS adapter and vector-factory selection path.
+
+
+2026-10-24 ownership additions: `domain/planning.py` owns model decisions, clarification and
+pending questions; `bootstrap/office_checks.py` owns offline SQLite/storage prerequisites.
+Transport owns HTTP status mapping; domain failures use application categories. Chat receives
+its independent validator explicitly; the execution port no longer exposes it. The architecture
+test resolves relative imports and verifies that detection with a synthetic violating import.
+The stock office embedding modes are disabled/private_http. Approved direct local Python
+providers remain integration seams for custom process composition, not automatic weight loaders.

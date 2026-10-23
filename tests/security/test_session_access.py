@@ -156,8 +156,9 @@ def test_database_writer_wait_is_bounded_by_remaining_request_budget(settings, r
         competing.execute("BEGIN IMMEDIATE")
         try:
             began = time.monotonic()
-            with stage_metrics({}, time.time() + 0.05), pytest.raises(sqlite3.OperationalError):
+            with stage_metrics({}, time.time() + 0.05), pytest.raises(Failure) as error:
                 resources.sessions.create("analyst", "blocked fictional request")
+            assert error.value.code == "STORAGE_UNAVAILABLE"
             assert time.monotonic() - began < 1.0
         finally:
             competing.rollback()

@@ -1,5 +1,6 @@
 """Run `python setup_env.py` to create .venv, install core dependencies and prepare .env."""
 
+import argparse
 import os
 import subprocess
 import sys
@@ -7,7 +8,7 @@ import venv
 from pathlib import Path
 
 
-def main() -> None:
+def main(office: bool = False) -> None:
     """Prepare this project without replacing an existing environment settings file."""
     if sys.version_info[:2] != (3, 13):
         raise SystemExit("Use Python 3.13; the verified project baseline is Python 3.13.16.")
@@ -18,11 +19,31 @@ def main() -> None:
     if not python.is_file():
         venv.EnvBuilder(with_pip=True).create(environment)
     print("2/3 Installing pinned core dependencies and the project", flush=True)
+    requirements = (
+        ["requirements-oracle.lock", "requirements-redis.lock"]
+        if office
+        else ["requirements-core.lock"]
+    )
     subprocess.run(
-        [str(python), "-m", "pip", "install", "-r", str(root / "requirements-core.lock")],
+        [
+            str(python),
+            "-m",
+            "pip",
+            "install",
+            *[value for name in requirements for value in ("-r", str(root / name))],
+        ],
         check=True,
     )
     subprocess.run([str(python), "-m", "pip", "install", "--no-deps", "-e", str(root)], check=True)
+    if office:
+        subprocess.run(
+            [
+                str(python),
+                "-c",
+                "from nl2sql.bootstrap.office_checks import require_sqlite_runtime; require_sqlite_runtime()",
+            ],
+            check=True,
+        )
     print("3/3 Preparing .env", flush=True)
     template = (root / ".env.example").read_text(encoding="utf-8")
     try:
@@ -34,4 +55,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--office", action="store_true", help="Include the approved Oracle and Redis clients"
+    )
+    main(parser.parse_args().office)

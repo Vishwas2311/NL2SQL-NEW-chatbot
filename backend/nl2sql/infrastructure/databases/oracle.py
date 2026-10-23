@@ -15,6 +15,7 @@ import oracledb
 from nl2sql.application.query.entity_lookup import entity_query, exact_entity
 from nl2sql.application.query.security import SQLValidator
 from nl2sql.domain.models import (
+    MAX_JOIN_EDGES,
     Capability,
     EntityMapping,
     ExecutionResult,
@@ -140,9 +141,16 @@ class OracleAdapter:
         validator: SQLValidator,
         policy: OracleContextPolicy,
         pool: OraclePool | None = None,
+        *,
+        max_join_edges: int = MAX_JOIN_EDGES,
     ) -> None:
+        if not 0 <= max_join_edges <= MAX_JOIN_EDGES:
+            raise ValueError("Invalid Oracle join budget")
+        self.max_join_edges = max_join_edges
         if not config.approved_test_environment:
-            raise Failure("ORACLE_NOT_APPROVED", "Oracle test access is not approved.", 503)
+            raise Failure(
+                "ORACLE_NOT_APPROVED", "Oracle test access is not approved.", "unavailable"
+            )
         self.config = config
         self.validator = validator
         self.policy = policy
@@ -167,17 +175,19 @@ class OracleAdapter:
         query = self.validator.verify(capability, principal)
         if query.dialect != "oracle":
             raise Failure("DIALECT_ERROR", "An Oracle query is required.")
-        if len(query.validated_plan.proof.relationships) > 5:
+        if len(query.validated_plan.proof.relationships) > self.max_join_edges:
             raise Failure("PREFLIGHT_REJECTED", "The query exceeds the resource budget.")
         cancelled = cancellation or Event()
         if cancelled.is_set():
-            raise Failure("QUERY_CANCELLED", "The query was cancelled.", 409)
+            raise Failure("QUERY_CANCELLED", "The query was cancelled.", "conflict")
         started = time.perf_counter()
         deadline = min(capability.expires_at, time.time() + self.config.timeout_ms / 1000)
         try:
             connection = self.pool.acquire()
         except oracledb.Error as error:
-            raise Failure("ORACLE_UNAVAILABLE", "Oracle acquisition failed.", 503) from error
+            raise Failure(
+                "ORACLE_UNAVAILABLE", "Oracle acquisition failed.", "unavailable"
+            ) from error
         finished = Event()
         cancel_failed = Event()
 
@@ -211,7 +221,9 @@ class OracleAdapter:
                 names = tuple(str(item[0]).lower() for item in cursor.description or ())
                 if names != query.output:
                     raise Failure(
-                        "RESULT_SCHEMA", "Oracle output did not match the approved schema.", 503
+                        "RESULT_SCHEMA",
+                        "Oracle output did not match the approved schema.",
+                        "unavailable",
                     )
                 records = cursor.fetchmany(query.validated_plan.plan.limit + 1)
                 self._check_deadline(deadline, cancelled)
@@ -230,8 +242,10 @@ class OracleAdapter:
             self._check_deadline(deadline, cancelled)
             code = str(getattr(error.args[0], "full_code", "")) if error.args else ""
             if code in {"DPY-4024", "DPI-1067", "DPI-1080"}:
-                raise Failure("QUERY_TIMEOUT", "The query timed out.", 504) from error
-            raise Failure("ORACLE_UNAVAILABLE", "Oracle execution failed.", 503) from error
+                raise Failure("QUERY_TIMEOUT", "The query timed out.", "timeout") from error
+            raise Failure(
+                "ORACLE_UNAVAILABLE", "Oracle execution failed.", "unavailable"
+            ) from error
         finally:
             finished.set()
             watcher.join(timeout=0.2)
@@ -240,9 +254,9 @@ class OracleAdapter:
     @staticmethod
     def _check_deadline(deadline: float, cancellation: Event) -> None:
         if cancellation.is_set():
-            raise Failure("QUERY_CANCELLED", "The query was cancelled.", 409)
+            raise Failure("QUERY_CANCELLED", "The query was cancelled.", "conflict")
         if time.time() >= deadline:
-            raise Failure("QUERY_TIMEOUT", "The query timed out.", 504)
+            raise Failure("QUERY_TIMEOUT", "The query timed out.", "timeout")
 
     def _rows(
         self,
@@ -258,12 +272,14 @@ class OracleAdapter:
                 scalar: Scalar
                 if isinstance(value, Decimal):
                     if not value.is_finite():
-                        raise Failure("RESULT_TYPE", "Non-finite Oracle number.", 503)
+                        raise Failure("RESULT_TYPE", "Non-finite Oracle number.", "unavailable")
                     scalar = int(value) if value == value.to_integral_value() else str(value)
                 elif isinstance(value, datetime) and key in (dates or set()):
                     if value.time().isoformat() != "00:00:00":
                         raise Failure(
-                            "RESULT_TYPE", "A business DATE contained a time component.", 503
+                            "RESULT_TYPE",
+                            "A business DATE contained a time component.",
+                            "unavailable",
                         )
                     scalar = value.date().isoformat()
                 elif isinstance(value, (date, datetime)):
@@ -271,11 +287,11 @@ class OracleAdapter:
                 elif isinstance(value, (str, int, type(None))):
                     scalar = value
                 else:
-                    raise Failure("RESULT_TYPE", "Unsupported Oracle output type.", 503)
+                    raise Failure("RESULT_TYPE", "Unsupported Oracle output type.", "unavailable")
                 row[key] = scalar
             size += len(json.dumps(row).encode())
             if size > self.config.max_result_bytes:
-                raise Failure("RESULT_LIMIT", "Please narrow the result set.", 413)
+                raise Failure("RESULT_LIMIT", "Please narrow the result set.", "too_large")
             rows.append(row)
         return tuple(rows)
 
@@ -295,12 +311,12 @@ class OracleAdapter:
                     raise Failure(
                         "ORACLE_CLEANUP",
                         "Oracle session cleanup failed; the connection was discarded.",
-                        503,
+                        "unavailable",
                     ) from None
         try:
             self.pool.release(connection)
         except oracledb.Error as error:
-            raise Failure("ORACLE_UNAVAILABLE", "Oracle release failed.", 503) from error
+            raise Failure("ORACLE_UNAVAILABLE", "Oracle release failed.", "unavailable") from error
 
     def close(self) -> None:
         """Release the approved connection pool."""
@@ -316,7 +332,9 @@ class OracleAdapter:
                 cursor.execute("SELECT 1 FROM DUAL")
                 cursor.fetchmany(1)
         except oracledb.Error as error:
-            raise Failure("ORACLE_UNAVAILABLE", "Oracle readiness failed.", 503) from error
+            raise Failure(
+                "ORACLE_UNAVAILABLE", "Oracle readiness failed.", "unavailable"
+            ) from error
         finally:
             if connection is not None:
                 self._release(connection, False)
@@ -338,7 +356,7 @@ class OracleAdapter:
             connection = self.pool.acquire()
         except oracledb.Error as error:
             raise Failure(
-                "ORACLE_UNAVAILABLE", "Oracle entity lookup is unavailable.", 503
+                "ORACLE_UNAVAILABLE", "Oracle entity lookup is unavailable.", "unavailable"
             ) from error
         try:
             self._check_deadline(end, Event())
@@ -353,7 +371,7 @@ class OracleAdapter:
                 return exact_entity(matches)
         except oracledb.Error as error:
             raise Failure(
-                "ORACLE_UNAVAILABLE", "Oracle entity lookup is unavailable.", 503
+                "ORACLE_UNAVAILABLE", "Oracle entity lookup is unavailable.", "unavailable"
             ) from error
         finally:
             self._release(connection, False)

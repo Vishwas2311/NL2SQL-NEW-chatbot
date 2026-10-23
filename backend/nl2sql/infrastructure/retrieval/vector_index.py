@@ -1,52 +1,16 @@
-"""Optional exact FAISS adapter; never installs dependencies or downloads models."""
+"""Embedded Ladybug vector projection; no extensions, downloads or vector server."""
 
-import importlib
 import math
-from collections.abc import Callable, Iterable
-from typing import Protocol, cast
+import os
+from contextlib import ExitStack
+from pathlib import Path
+from threading import RLock
+
+import ladybug
 
 from nl2sql.domain.models import Failure
 
 VectorEntries = tuple[tuple[str, tuple[float, ...]], ...]
-
-
-class VectorIndex(Protocol):
-    """One instance per authorized metric-grant partition."""
-
-    def search(self, vector: tuple[float, ...], allowed: set[str]) -> tuple[tuple[str, float], ...]:
-        """Return only permitted metric IDs."""
-        ...
-
-
-VectorIndexFactory = Callable[[VectorEntries], VectorIndex]
-
-
-class FlatIndex(Protocol):
-    """Small optional native binding boundary."""
-
-    def add(self, values: object) -> None:
-        """Add normalized float32 vectors."""
-        ...
-
-    def search(
-        self, values: object, count: int
-    ) -> tuple[Iterable[Iterable[float]], Iterable[Iterable[int]]]:
-        """Search bounded vectors."""
-        ...
-
-
-class FaissModule(Protocol):
-    """Only the exact inner-product index is used."""
-
-    IndexFlatIP: Callable[[int], FlatIndex]
-
-
-class ArrayModule(Protocol):
-    """Array conversion boundary without a base NumPy dependency."""
-
-    def ascontiguousarray(self, values: object, dtype: str) -> object:
-        """Create contiguous float32 data."""
-        ...
 
 
 def normalized(vector: tuple[float, ...]) -> tuple[float, ...]:
@@ -59,40 +23,87 @@ def normalized(vector: tuple[float, ...]) -> tuple[float, ...]:
     return tuple(value / magnitude for value in vector)
 
 
-class FaissVectorIndex:
-    """Normalized IndexFlatIP cosine search; approval precedes lazy native imports."""
+class LadybugVectorIndex:
+    """Exact cosine search over bounded metadata, automatically rebuilt per snapshot."""
 
-    def __init__(self, entries: VectorEntries, *, approved: bool = False) -> None:
-        if not approved:
-            raise ValueError("Optional native FAISS requires explicit organizational approval")
+    def __init__(self, entries: VectorEntries, native_dir: Path | None = None) -> None:
         if not entries or len(entries) > 10_000 or len({key for key, _ in entries}) != len(entries):
             raise ValueError("Invalid vector partition")
         vectors = tuple(normalized(vector) for _, vector in entries)
         if len({len(vector) for vector in vectors}) != 1:
             raise ValueError("Embedding dimensions differ")
-        self.keys = tuple(key for key, _ in entries)
         self.dimension = len(vectors[0])
+        self.keys = {key for key, _ in entries}
+        self._lock = RLock()
+        self._closed = False
+        with ExitStack() as cleanup:
+            if os.name == "nt" and native_dir is not None:
+                cleanup.callback(os.add_dll_directory(str(native_dir)).close)
+            database = ladybug.Database(
+                ":memory:", buffer_pool_size=32 * 1024 * 1024, max_num_threads=1
+            )
+            cleanup.callback(database.close)
+            self._connection = ladybug.Connection(database)
+            cleanup.callback(self._connection.close)
+            self._execute(
+                "CREATE NODE TABLE MetadataVector(id STRING PRIMARY KEY, "
+                f"embedding DOUBLE[{self.dimension}])"
+            )
+            for (key, _), vector in zip(entries, vectors, strict=True):
+                self._execute(
+                    "CREATE (:MetadataVector {id:$id, "
+                    f"embedding:CAST($vector AS DOUBLE[{self.dimension}])}})",
+                    {"id": key, "vector": list(vector)},
+                )
+            self._cleanup = cleanup.pop_all()
+
+    def _execute(self, query: str, values: dict[str, object] | None = None) -> list[list[object]]:
         try:
-            native = cast(FaissModule, importlib.import_module("faiss"))
-            self.arrays = cast(ArrayModule, importlib.import_module("numpy"))
-        except ImportError as error:
+            result = self._connection.execute(query, values)
+            if isinstance(result, list):
+                for item in result:
+                    item.close()
+                raise ValueError("Only one vector statement is allowed")
+            try:
+                rows: list[list[object]] = []
+                while result.has_next():
+                    rows.append(result.get_next())
+                return rows
+            finally:
+                result.close()
+        except Exception as error:
             raise Failure(
-                "VECTOR_DEPENDENCY", "Approved optional vector libraries are unavailable.", 503
+                "VECTOR_UNAVAILABLE",
+                "The metadata vector projection is unavailable.",
+                "unavailable",
             ) from error
-        self.index = native.IndexFlatIP(self.dimension)
-        self.index.add(self.arrays.ascontiguousarray(vectors, dtype="float32"))
 
     def search(self, vector: tuple[float, ...], allowed: set[str]) -> tuple[tuple[str, float], ...]:
-        """Reject malformed native results and filter before fusion."""
+        """The Cypher predicate scopes candidates before the result limit."""
         if len(vector) != self.dimension:
             raise ValueError("Query/index dimension mismatch")
-        query = self.arrays.ascontiguousarray((normalized(vector),), dtype="float32")
-        scores, indexes = self.index.search(query, min(len(self.keys), 80))
-        result: list[tuple[str, float]] = []
-        for score, index in zip(next(iter(scores)), next(iter(indexes)), strict=True):
-            if not 0 <= index < len(self.keys) or not math.isfinite(score):
-                raise ValueError("Invalid FAISS result")
-            key = self.keys[index]
-            if key in allowed and score > 0:
-                result.append((key, float(score)))
-        return tuple(sorted(result, key=lambda item: (-item[1], item[0])))[:20]
+        query = normalized(vector)
+        with self._lock:
+            if self._closed:
+                raise Failure(
+                    "VECTOR_UNAVAILABLE", "The metadata vector projection is closed.", "unavailable"
+                )
+            rows = self._execute(
+                "MATCH (v:MetadataVector) WHERE v.id IN $allowed "
+                "RETURN v.id,array_cosine_similarity(v.embedding,"
+                f"CAST($query AS DOUBLE[{self.dimension}])) AS score "
+                "ORDER BY score DESC,v.id LIMIT $limit",
+                {"allowed": sorted(allowed & self.keys), "query": list(query), "limit": 100},
+            )
+            return tuple(
+                (str(key), float(str(score)))
+                for key, score in rows
+                if math.isfinite(float(str(score))) and float(str(score)) > 0
+            )
+
+    def close(self) -> None:
+        """Idempotent native cleanup, serialized with searches."""
+        with self._lock:
+            if not self._closed:
+                self._closed = True
+                self._cleanup.close()

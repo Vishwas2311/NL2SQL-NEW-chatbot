@@ -79,7 +79,7 @@ class MetadataWorkflow:
                 raise Failure(
                     "SOURCE_MISMATCH",
                     "A metadata store cannot silently switch database identity.",
-                    409,
+                    "conflict",
                 )
             if catalog is None and previous is not None:
                 catalog = previous.spec.catalog
@@ -211,7 +211,9 @@ class MetadataWorkflow:
         record = self.repository.get(candidate)
         if record.spec.issues or record.spec.catalog is None or record.spec.artifacts is None:
             raise Failure(
-                "CANDIDATE_INVALID", "Resolve the candidate validation issues before approval.", 409
+                "CANDIDATE_INVALID",
+                "Resolve the candidate validation issues before approval.",
+                "conflict",
             )
         evidence = authority.verify(
             tokens,
@@ -235,24 +237,26 @@ class MetadataWorkflow:
                 raise Failure(
                     "CANDIDATE_STALE",
                     "Restage and review this candidate against the current publication.",
-                    409,
+                    "conflict",
                 )
             self.verify_record(record, published=False)
             current = self.provider.discover()
             if inventory_digest(current) != inventory_digest(record.spec.inventory):
                 raise Failure(
-                    "SOURCE_CHANGED", "Rediscover and review the changed physical inventory.", 409
+                    "SOURCE_CHANGED",
+                    "Rediscover and review the changed physical inventory.",
+                    "conflict",
                 )
             if self.runtime_check is None:
                 raise Failure(
                     "RUNTIME_CHECK_REQUIRED",
                     "A complete runtime validation is required before publication.",
-                    409,
+                    "conflict",
                 )
             self.runtime_check(record.spec)
             if inventory_digest(self.provider.discover()) != inventory_digest(current):
                 raise Failure(
-                    "SOURCE_CHANGED", "The physical schema changed during publication.", 409
+                    "SOURCE_CHANGED", "The physical schema changed during publication.", "conflict"
                 )
             self.repository.activate(candidate, expected, actor.id)
         return candidate
@@ -264,12 +268,16 @@ class MetadataWorkflow:
         with self.repository.refresh_lease():
             expected = self.repository.control()
             if expected.active is None:
-                raise Failure("NO_ACTIVE_METADATA", "There is no active metadata version.", 409)
+                raise Failure(
+                    "NO_ACTIVE_METADATA", "There is no active metadata version.", "conflict"
+                )
             current = self.repository.get(expected.active)
             old = self.repository.get(target)
             if old.state not in {"published", "superseded"}:
                 raise Failure(
-                    "ROLLBACK_DENIED", "Only previously published metadata can be restored.", 409
+                    "ROLLBACK_DENIED",
+                    "Only previously published metadata can be restored.",
+                    "conflict",
                 )
             self.verify_record(old, published=True)
             assert old.spec.catalog is not None and current.spec.catalog is not None
@@ -279,22 +287,26 @@ class MetadataWorkflow:
                 raise Failure(
                     "ROLLBACK_SECURITY",
                     "Rollback cannot restore older policies or grants; stage a reviewed revision.",
-                    403,
+                    "denied",
                 )
             live = self.provider.discover()
             if reconcile(old.spec.catalog, live).issues:
                 raise Failure(
                     "ROLLBACK_INCOMPATIBLE",
                     "The rollback target is incompatible with the current physical schema.",
-                    409,
+                    "conflict",
                 )
             if self.runtime_check is None:
                 raise Failure(
-                    "RUNTIME_CHECK_REQUIRED", "Runtime validation is required before rollback.", 409
+                    "RUNTIME_CHECK_REQUIRED",
+                    "Runtime validation is required before rollback.",
+                    "conflict",
                 )
             self.runtime_check(old.spec)
             if inventory_digest(self.provider.discover()) != inventory_digest(live):
-                raise Failure("SOURCE_CHANGED", "The physical schema changed during rollback.", 409)
+                raise Failure(
+                    "SOURCE_CHANGED", "The physical schema changed during rollback.", "conflict"
+                )
             self.repository.activate(target, expected, actor.id, rollback=True)
         return target
 
@@ -303,7 +315,9 @@ class MetadataWorkflow:
         spec = record.spec
         if spec.catalog is None or spec.artifacts is None or spec.issues:
             raise Failure(
-                "METADATA_INCOMPLETE", "A complete certified metadata bundle is required.", 503
+                "METADATA_INCOMPLETE",
+                "A complete certified metadata bundle is required.",
+                "unavailable",
             )
         self._authority().require_complete(
             record.approvals,
@@ -313,7 +327,9 @@ class MetadataWorkflow:
             published,
         )
         if reconcile(spec.catalog, spec.inventory).issues:
-            raise Failure("METADATA_INTEGRITY", "Published metadata compatibility failed.", 503)
+            raise Failure(
+                "METADATA_INTEGRITY", "Published metadata compatibility failed.", "unavailable"
+            )
         artifacts = self.builder.build(
             spec.catalog, spec.inventory, spec.principals, spec.artifacts
         )
@@ -331,12 +347,16 @@ class MetadataWorkflow:
                 "vector_digest",
             )
         ):
-            raise Failure("METADATA_INTEGRITY", "Metadata artifact versions do not match.", 503)
+            raise Failure(
+                "METADATA_INTEGRITY", "Metadata artifact versions do not match.", "unavailable"
+            )
 
     def _authority(self) -> ApprovalVerifier:
         if self.authority is None:
             raise Failure(
-                "ADMIN_CONFIGURATION", "Administrative trust anchors have not been configured.", 403
+                "ADMIN_CONFIGURATION",
+                "Administrative trust anchors have not been configured.",
+                "denied",
             )
         return self.authority
 

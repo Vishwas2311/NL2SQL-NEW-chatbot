@@ -6,13 +6,17 @@ from contextlib import ExitStack, closing
 from dataclasses import dataclass
 
 from nl2sql.application.chat import ChatService
-from nl2sql.application.ports import EmbeddingProvider, ModelProvider
+from nl2sql.application.inference import InferencePlanner
+from nl2sql.application.ports import EmbeddingProvider, ModelProvider, RateLimiter
 from nl2sql.application.query.security import SQLValidator
 from nl2sql.application.sessions import SessionService
+from nl2sql.domain.fingerprints import catalog_hash
 from nl2sql.infrastructure.auth import Authenticator
 from nl2sql.infrastructure.databases.sqlite import SQLiteDatabase
+from nl2sql.infrastructure.graph import LadybugGraph
 from nl2sql.infrastructure.inference.model import build_model
 from nl2sql.infrastructure.metadata.catalog_store import CatalogStore
+from nl2sql.infrastructure.rate_limit import build_inference_admission
 from nl2sql.infrastructure.retrieval.embeddings import ManagedEncoder, build_embedding
 from nl2sql.infrastructure.retrieval.lexical import Retriever
 from nl2sql.infrastructure.sessions import SessionStore
@@ -29,7 +33,7 @@ class Resources:
     retriever: Retriever
     model: ModelProvider
     service: ChatService
-    encoder: ManagedEncoder | None = None
+    auxiliary: tuple[LadybugGraph | ManagedEncoder | RateLimiter, ...] = ()
 
     @property
     def conversations(self) -> SessionService:
@@ -38,15 +42,19 @@ class Resources:
 
     def close(self) -> None:
         """Release initialized resources in reverse dependency order."""
-        self.model.close()
-        self.retriever.close()
-        if self.encoder is not None:
-            self.encoder.close()
-        self.database.close()
-        self.sessions.close()
+        with ExitStack() as cleanup:
+            for resource in (
+                self.sessions,
+                self.database,
+                *self.auxiliary,
+                self.retriever,
+                self.model,
+            ):
+                cleanup.callback(resource.close)
 
     def components(self) -> dict[str, str]:
         """Configuration and local compatibility signals, without probing external inference."""
+        self.service.model.admission.ready()
         return {
             "metadata": "pinned_catalog",
             "index": "compatible",
@@ -79,8 +87,15 @@ def build_resources(
         )
     ) as conn:
         catalog = store.load(conn)
-    validator = SQLValidator(catalog, secrets.token_bytes(32))
     with ExitStack() as cleanup:
+        graph = LadybugGraph.build(
+            settings.data_dir / "graphs" / (catalog_hash(catalog) + ".lbdb"),
+            catalog,
+            settings.graph_buffer_mb,
+            settings.graph_native_dir,
+        )
+        cleanup.callback(graph.close)
+        validator = SQLValidator(catalog, secrets.token_bytes(32), traversal=graph)
         database = SQLiteDatabase(settings.data_dir / "banking.db", validator, settings)
         cleanup.callback(database.close)
         configured_encoder = build_embedding(settings) if encoder is None else None
@@ -91,6 +106,7 @@ def build_resources(
             settings.principals,
             encoder or configured_encoder,
             options=settings.retrieval_options,
+            native_dir=settings.graph_native_dir,
         )
         cleanup.callback(retriever.close)
         sessions = SessionStore(
@@ -101,6 +117,27 @@ def build_resources(
         cleanup.callback(sessions.close)
         provider = model or build_model(settings)
         cleanup.callback(provider.close)
-        service = ChatService(settings, store, retriever, provider, database, sessions)
+        inference = build_inference_admission(settings)
+        cleanup.callback(inference.close)
+        service = ChatService(
+            settings,
+            catalog,
+            retriever,
+            InferencePlanner(provider, inference),
+            database,
+            sessions,
+            sql_validator=validator,
+            traversal=graph,
+        )
         cleanup.pop_all()
-    return Resources(auth, sessions, database, retriever, provider, service, configured_encoder)
+    return Resources(
+        auth,
+        sessions,
+        database,
+        retriever,
+        provider,
+        service,
+        (graph, inference, configured_encoder)
+        if configured_encoder is not None
+        else (graph, inference),
+    )

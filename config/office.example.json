@@ -1,15 +1,37 @@
 {
-  "data_dir": "restricted/runtime",
-  "metadata_root": "restricted/metadata",
+  "data_dir": "/Users/REPLACE_ME/Library/Application Support/NL2SQL/runtime",
+  "metadata_root": "/Users/REPLACE_ME/Library/Application Support/NL2SQL/metadata",
   "query_backend": "oracle",
-  "model_mode": "disabled",
+  "model_mode": "private_http",
   "embedding_mode": "disabled",
   "data_classification": "restricted",
-  "pool_size": 4,
-  "rate_limit_backend": "redis",
-  "api_workers": 2,
+  "pool_size": 2,
+  "rate_limit_backend": "memory",
+  "api_workers": 1,
   "http_concurrency_limit": 64,
-  "request_timeout_seconds": 15,
+  "request_timeout_seconds": 120,
   "query_timeout_seconds": 3,
-  "metadata_startup_reconcile": true
+  "metadata_startup_reconcile": false,
+  "catalog_path": "/Users/REPLACE_ME/Library/Application Support/NL2SQL/metadata/certified-catalog.json",
+  "model_endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+  "approved_model_hosts": [
+    "127.0.0.1"
+  ],
+  "model_name": "SET_APPROVED_MODEL_ID",
+  "model_token_count_endpoint": "http://127.0.0.1:8080/v1/chat/completions/input_tokens",
+  "model_context_tokens": 100000,
+  "model_token_safety_margin": 128,
+  "model_timeout_seconds": 60,
+  "embedding_endpoint": "http://127.0.0.1:8081/v1/embeddings",
+  "approved_embedding_hosts": [
+    "127.0.0.1"
+  ],
+  "embedding_model": "SET_APPROVED_EMBEDDING_MODEL",
+  "embedding_version": "SET_APPROVED_EMBEDDING_VERSION",
+  "embedding_dimension": 768,
+  "index_storage_path": null,
+  "max_concurrent_chats": 8,
+  "max_concurrent_inferences": 1,
+  "retrieval_max_text_bytes": 10000000,
+  "retrieval_max_native_mb": 1024
 }

@@ -43,7 +43,9 @@ class SourceProfile(FrozenModel):
             return FileDiscovery(self.inventory_path)
         if self.source == "synthetic" and self.database_path is not None:
             return SyntheticDiscovery(self.database_path, self.source_id)
-        raise Failure("SOURCE_CONFIGURATION", "The metadata source profile is incomplete.", 503)
+        raise Failure(
+            "SOURCE_CONFIGURATION", "The metadata source profile is incomplete.", "unavailable"
+        )
 
 
 def load_profile(root: Path) -> SourceProfile:
@@ -67,7 +69,7 @@ def authority_from_environment() -> ApprovalAuthority | None:
         secret = os.environ.get(item.key_env)
         if secret is None:
             raise Failure(
-                "ADMIN_CONFIGURATION", "A configured reviewer secret is unavailable.", 403
+                "ADMIN_CONFIGURATION", "A configured reviewer secret is unavailable.", "denied"
             )
         reviewers.append(Reviewer(id=item.id, roles=item.roles, secret=SecretStr(secret)))
     return ApprovalAuthority(SecretStr(key), tuple(reviewers))

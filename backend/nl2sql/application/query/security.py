@@ -10,7 +10,7 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ParseError
 
-from nl2sql.application.catalog import JoinGraph
+from nl2sql.application.graph import GraphTraversal
 from nl2sql.application.query.physical_sql import oracle_identifiers
 from nl2sql.application.query.planning import PlanValidator, component_plans, principal_hash
 from nl2sql.application.query.sql_types import infer_bind_types
@@ -33,7 +33,7 @@ from nl2sql.domain.models import (
 
 
 def _deny() -> Failure:
-    return Failure("INVALID_SQL", "The generated query did not pass safety validation.", 422)
+    return Failure("INVALID_SQL", "The generated query did not pass safety validation.", "invalid")
 
 
 def _canonical(tree: exp.Expr, dialect: str) -> str:
@@ -171,10 +171,11 @@ class SQLValidator:
         secret: bytes,
         bundle_version: str = "",
         guard: Callable[[CompiledQuery, Principal], None] | None = None,
+        traversal: GraphTraversal | None = None,
     ) -> None:
         self.catalog = catalog
         self.secret = secret
-        self.plan_validator = PlanValidator(catalog)
+        self.plan_validator = PlanValidator(catalog, traversal=traversal)
         self.bundle_version = bundle_version
         self.guard = guard
 
@@ -306,7 +307,7 @@ class SQLValidator:
             raise _deny()
         expires = min(time.time() + 30, deadline)
         if expires <= time.time():
-            raise Failure("QUERY_TIMEOUT", "The request deadline was exceeded.", 504)
+            raise Failure("QUERY_TIMEOUT", "The request deadline was exceeded.", "timeout")
         return Capability(
             query=query, expires_at=expires, signature=self._signature(query, expires)
         )
@@ -534,7 +535,7 @@ class SQLValidator:
         common = dimensions[view.common_key]
         scope = dimensions[policy.scope_dimension]
         physical_joins = ""
-        for edge in JoinGraph(self.catalog).resolve(
+        for edge in self.plan_validator.graph.resolve(
             view, {dimensions[key].table for key in plan.dimensions} | {scope.table}
         ):
             on = " AND ".join(
@@ -720,7 +721,7 @@ class SQLValidator:
             or capability.query.validated_plan.proof.principal_digest != principal_hash(principal)
             or capability.query.validated_plan.proof.catalog_digest != catalog_hash(self.catalog)
         ):
-            raise Failure("CAPABILITY_DENIED", "Query authorization expired or changed.", 403)
+            raise Failure("CAPABILITY_DENIED", "Query authorization expired or changed.", "denied")
         if capability.query.bundle_version != self.bundle_version:
             raise _deny()
         if self.guard is not None:

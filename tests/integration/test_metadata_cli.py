@@ -15,6 +15,9 @@ from nl2sql.settings import Settings
 
 
 def command(root, *arguments, environment=None, success=True):
+    environment = dict(os.environ if environment is None else environment)
+    if directory := environment.get("NL2SQL_TEST_GRAPH_NATIVE_DIR"):
+        environment["NL2SQL_GRAPH_NATIVE_DIR"] = directory
     result = subprocess.run(
         [sys.executable, "-m", "nl2sql", "metadata", *arguments, "--root", str(root)],
         capture_output=True,

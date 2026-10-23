@@ -20,6 +20,7 @@ from nl2sql.infrastructure.metadata.builder import BundleBuilder
 from nl2sql.infrastructure.metadata.discovery import SyntheticDiscovery
 from nl2sql.infrastructure.metadata.governance import ApprovalAuthority
 from nl2sql.infrastructure.metadata.store import MetadataRepository
+from nl2sql.infrastructure.rate_limit import MemoryRateLimiter
 from nl2sql.infrastructure.sessions import SessionStore
 from pydantic import SecretStr
 
@@ -31,7 +32,10 @@ class MetadataKit:
         self.repository = MetadataRepository(root)
         self.sessions = SessionStore(settings.data_dir / "sessions.db")
         self.model = MockModel({})
-        self.factory = RuntimeFactory(settings, self.sessions, self.model)
+        self.inference = MemoryRateLimiter(60, max_chats=settings.max_concurrent_inferences)
+        self.factory = RuntimeFactory(
+            settings, self.sessions, self.model, inference_admission=self.inference
+        )
         self.authority = ApprovalAuthority(
             SecretStr("a" * 48),
             tuple(
@@ -96,6 +100,7 @@ class MetadataKit:
         if self.manager is not None:
             self.manager.close()
         self.model.close()
+        self.inference.close()
         self.sessions.close()
         self.repository.close()
 
@@ -314,7 +319,7 @@ def test_scheduler_disabled_due_claim_retry_and_safe_failure(kit, monkeypatch):
     kit.repository.configure_schedule(True, 5, True, "test-admin")
 
     def fail():
-        raise Failure("DISCOVERY_UNAVAILABLE", "private endpoint and secret", 503)
+        raise Failure("DISCOVERY_UNAVAILABLE", "private endpoint and secret", "unavailable")
 
     monkeypatch.setattr(kit.workflow.provider, "discover", fail)
     failed = refresh.tick()
@@ -545,7 +550,7 @@ def test_failed_complete_runtime_build_keeps_active_version(kit):
     kit.workflow.approve(staged.candidate_id, kit.approvals(staged.candidate_id), kit.admin)
 
     def fail(_spec):
-        raise Failure("INJECTED_RUNTIME", "Synthetic resource build failed.", 503)
+        raise Failure("INJECTED_RUNTIME", "Synthetic resource build failed.", "unavailable")
 
     kit.workflow.runtime_check = fail
     with pytest.raises(Failure):
@@ -590,6 +595,8 @@ def test_inflight_query_is_pinned_and_old_resources_retire_after_release(kit):
     first = kit.publish()
     kit.start()
     with kit.manager.pin() as old:
+        graph = old.service.compiler.validator.graph.traversal
+        assert "metric:loan_exposure" in graph.lineage({"table:loans"})
         metrics = list(kit.catalog.metrics)
         metrics[0] = metrics[0].model_copy(
             update={"aliases": (*metrics[0].aliases, "another approved synonym")}
@@ -603,7 +610,10 @@ def test_inflight_query_is_pinned_and_old_resources_retire_after_release(kit):
         assert new_answer.provenance.bundle_version == second
         assert old_answer.rows == new_answer.rows
         assert not old.database._pool.empty()
+        assert "metric:loan_exposure" in graph.lineage({"table:loans"})
     assert old.database._pool.empty()
+    with pytest.raises(Failure, match="unavailable"):
+        graph.lineage({"table:loans"})
 
 
 def test_refresh_lease_and_dry_run_do_not_change_publication(kit):

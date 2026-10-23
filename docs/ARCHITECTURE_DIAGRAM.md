@@ -1,3 +1,25 @@
+# Current system diagrams — 23 October 2026
+
+These diagrams describe the current local working source, including the unpublished
+LadybugDB migration. They are logical architecture/process views, not deployment claims.
+The complete comparison with the older supplied architecture is in
+[System walkthrough](APP_WALKTHROUGH.md).
+
+- [Current system and storage roles](../.archify/architecture-system-review-20261023-174500/system-overview.html).
+- [Inside one chat request](../.archify/architecture-system-review-20261023-174500/chat-request.html).
+- [Metadata setup, signed publication and optional monitoring](../.archify/architecture-system-review-20261023-174500/metadata-publication.html).
+
+These HTML files are local generated artifacts under `.archify/`; copy that folder with
+this source tree if sharing the local diagram links. The source-readable Mermaid diagrams
+in APP_WALKTHROUGH.md remain available independently.
+
+## Historical image formats
+
+The earlier SVG/PNG/draw.io images below predate the graph migration and retain their
+original dated content. Use the current links above for LadybugDB and current behavior.
+
+> Graph migration note (2026-10-23): the dated diagram shows the previous graph engine. Current runtime uses embedded LadybugDB; see ARCHITECTURE.md and reports/graph-migration-2026-10-23.md. UI reference assets remain unchanged.
+
 # Application architecture diagram
 
 Source review: **21 October 2026**. This is one logical architecture diagram,

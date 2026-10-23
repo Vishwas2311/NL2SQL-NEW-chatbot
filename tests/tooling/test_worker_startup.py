@@ -100,7 +100,9 @@ def test_check_redis_checks_permissions_closes_and_sanitizes(
     class Admission:
         def ready(self):
             if not available:
-                raise Failure("RATE_LIMIT_UNAVAILABLE", "synthetic credential sentinel", 503)
+                raise Failure(
+                    "RATE_LIMIT_UNAVAILABLE", "synthetic credential sentinel", "unavailable"
+                )
 
         def close(self):
             closed.append(True)

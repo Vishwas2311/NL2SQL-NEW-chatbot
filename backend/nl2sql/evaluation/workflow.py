@@ -519,7 +519,7 @@ def evaluate_workflows(
     try:
         records = [_run_case(resources, case) for case in cases]
         _, peak = tracemalloc.get_traced_memory()
-        digest = catalog_hash(resources.service.store.snapshot())
+        digest = catalog_hash(resources.service.compiler.catalog)
     finally:
         tracemalloc.stop()
         resources.close()

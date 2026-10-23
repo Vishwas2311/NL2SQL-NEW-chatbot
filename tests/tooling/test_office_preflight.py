@@ -1,0 +1,85 @@
+"""Office checks inspect native versions and paths, without opening services."""
+
+import pytest
+from nl2sql.bootstrap.office_checks import office_preflight, wal_patched
+from nl2sql.domain.models import Failure
+
+
+@pytest.mark.parametrize(
+    "version,accepted",
+    [
+        ((3, 50, 4), False),
+        ((3, 51, 2), False),
+        ((3, 44, 6), True),
+        ((3, 50, 7), True),
+        ((3, 51, 3), True),
+        ((3, 52, 0), True),
+    ],
+)
+def test_wal_patch_versions(version, accepted):
+    assert wal_patched(version) == accepted
+
+
+def test_office_storage_and_runtime_checks_precede_connectivity(settings, tmp_path, monkeypatch):
+    configuration = settings.model_copy(
+        update={
+            "query_backend": "oracle",
+            "data_classification": "restricted",
+            "data_dir": tmp_path / "runtime",
+            "metadata_root": tmp_path / "metadata",
+            "catalog_path": tmp_path / "catalog.json",
+        }
+    )
+    monkeypatch.setattr("nl2sql.bootstrap.office_checks.sqlite3.sqlite_version_info", (3, 50, 4))
+    with pytest.raises(Failure) as error:
+        office_preflight(configuration)
+    assert error.value.code == "SQLITE_PATCH_REQUIRED"
+    monkeypatch.setattr("nl2sql.bootstrap.office_checks.sqlite3.sqlite_version_info", (3, 51, 3))
+    office_preflight(configuration)
+    with pytest.raises(Failure, match="absolute"):
+        office_preflight(
+            configuration.model_copy(update={"data_dir": type(tmp_path)("relative/runtime")})
+        )
+
+
+def test_oracle_metadata_command_checks_runtime_before_opening_store(
+    settings, tmp_path, monkeypatch
+):
+    from nl2sql.cli.metadata import MetadataOptions, run_metadata
+    from nl2sql.infrastructure.metadata.config import SourceProfile
+
+    root = tmp_path / "private"
+    root.mkdir()
+    path = tmp_path / "settings.json"
+    path.write_text(settings.model_dump_json(), encoding="utf-8")
+    (root / "source-profile.json").write_text(
+        SourceProfile(
+            source="oracle",
+            source_id="synthetic-test-only",
+            settings_path=path,
+        ).model_dump_json(),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("nl2sql.bootstrap.office_checks.sqlite3.sqlite_version_info", (3, 50, 4))
+    with pytest.raises(Failure) as error:
+        run_metadata(MetadataOptions(action="sync", root=root))
+    assert error.value.code == "SQLITE_PATCH_REQUIRED" and not (root / "metadata.db").exists()
+
+
+def test_office_checks_effective_override_root(settings, tmp_path, monkeypatch):
+    from nl2sql.cli import office
+
+    configuration = settings.model_copy(
+        update={
+            "query_backend": "oracle",
+            "data_classification": "restricted",
+            "metadata_root": tmp_path / "approved",
+        }
+    )
+    monkeypatch.setattr(office, "load_settings", lambda *_: configuration)
+    monkeypatch.setattr("nl2sql.bootstrap.office_checks.sqlite3.sqlite_version_info", (3, 51, 3))
+    with pytest.raises(Failure) as error:
+        office.run_office(
+            tmp_path / "settings.json", None, type(tmp_path)("relative"), None, 8000, 900
+        )
+    assert error.value.code == "OFFICE_STORAGE"

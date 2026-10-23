@@ -4,6 +4,7 @@ import json
 import secrets
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from nl2sql.application.catalog import JoinGraph, validate_catalog
 from nl2sql.application.metadata.drift import policy_digest
@@ -15,8 +16,8 @@ from nl2sql.domain.fingerprints import catalog_hash, digest, grant_digest
 from nl2sql.domain.metadata import BundleArtifacts
 from nl2sql.domain.models import Catalog, Failure, Period, Principal, QueryPlan
 from nl2sql.domain.physical import PhysicalInventory, inventory_digest
+from nl2sql.infrastructure.retrieval.embeddings import ManagedEncoder
 from nl2sql.infrastructure.retrieval.lexical import Retriever, search_records
-from nl2sql.infrastructure.retrieval.vector_index import VectorIndexFactory
 from nl2sql.settings import RetrievalOptions
 
 
@@ -27,8 +28,8 @@ class BundleBuilder:
     encoder: EmbeddingProvider | None = None
     encoder_version: str | None = None
     builds: int = 0
-    vector_factory: VectorIndexFactory | None = None
     retrieval_options: RetrievalOptions = field(default_factory=RetrievalOptions)
+    native_dir: Path | None = None
 
     def search_fingerprint(self, catalog: Catalog, principals: tuple[Principal, ...]) -> str:
         """Search tuning and encoder compatibility are versioned with the certified corpus."""
@@ -39,7 +40,7 @@ class BundleBuilder:
                     "grants": grant_digest(principals),
                     "encoder": self.encoder_version,
                     "options": self.retrieval_options.model_dump(),
-                    "vector_backend": "faiss-flat-ip" if self.vector_factory else "exact-cosine",
+                    "vector_backend": "ladybug-exact-cosine",
                 },
                 sort_keys=True,
             )
@@ -62,17 +63,31 @@ class BundleBuilder:
             or sum(len(table.columns) for table in catalog.tables) > 100_000
             or len({tuple(sorted(user.metrics)) for user in principals}) > 128
         ):
-            raise Failure("BUNDLE_LIMIT", "Metadata bundle exceeds its approved build budget.", 413)
+            raise Failure(
+                "BUNDLE_LIMIT", "Metadata bundle exceeds its approved build budget.", "too_large"
+            )
         validate_catalog(catalog)
         if any(user.policy_version != catalog.policy_version for user in principals):
             raise Failure(
-                "POLICY_VERSION", "Principal grants must match the certified policy revision.", 409
+                "POLICY_VERSION",
+                "Principal grants must match the certified policy revision.",
+                "conflict",
             )
         if self.encoder is not None and not self.encoder_version:
             raise ValueError("An approved embedding model version must be supplied")
         fingerprint = catalog_hash(catalog)
         graph = JoinGraph(catalog)
-        graph_fingerprint = digest(json.dumps(list(graph.graph.edges(data=True)), sort_keys=True))
+        graph_fingerprint = digest(
+            json.dumps(
+                [
+                    (a, b, data)
+                    for table in catalog.tables
+                    for (a, b), data in graph.graph.links.items()
+                    if a == table.id
+                ],
+                sort_keys=True,
+            )
+        )
         policy_fingerprint = policy_digest(catalog)
         compiler_fingerprint = digest(fingerprint + ":compiler-v43-1:plan-1.0")
         search_fingerprint = self.search_fingerprint(catalog, principals)
@@ -89,7 +104,7 @@ class BundleBuilder:
                 or (self.encoder is None and previous.vector_digest is not None)
             ):
                 raise Failure(
-                    "METADATA_INTEGRITY", "Metadata component fingerprints disagree.", 503
+                    "METADATA_INTEGRITY", "Metadata component fingerprints disagree.", "unavailable"
                 )
             return previous.model_copy(
                 update={
@@ -99,17 +114,17 @@ class BundleBuilder:
                 }
             )
         if len(json.dumps(search_records(catalog)).encode()) > 10_000_000:
-            raise Failure("BUNDLE_LIMIT", "Search metadata exceeds its byte budget.", 413)
+            raise Failure("BUNDLE_LIMIT", "Search metadata exceeds its byte budget.", "too_large")
         unknown = {key for user in principals for key in user.metrics} - {
             metric.id for metric in catalog.metrics
         }
         if len({user.id for user in principals}) != len(principals):
             raise Failure(
-                "GRANT_MAPPING", "Duplicate principal grant identities are not allowed.", 409
+                "GRANT_MAPPING", "Duplicate principal grant identities are not allowed.", "conflict"
             )
         if unknown:
             raise Failure(
-                "GRANT_MAPPING", "A configured grant references an unavailable metric.", 409
+                "GRANT_MAPPING", "A configured grant references an unavailable metric.", "conflict"
             )
         planner = PlanValidator(catalog)
         compiler = Compiler(catalog, planner)
@@ -137,7 +152,11 @@ class BundleBuilder:
             query = compiler.compile(planner.validate(plan, contract), contract, dialect)
             validator.validate(query, contract, time.time() + 30)
         search = Retriever(
-            catalog, principals, self.encoder, self.vector_factory, self.retrieval_options
+            catalog,
+            principals,
+            self.encoder,
+            self.retrieval_options,
+            self.native_dir,
         )
         try:
             vector = (
@@ -147,6 +166,8 @@ class BundleBuilder:
             )
         finally:
             search.close()
+        if isinstance(self.encoder, ManagedEncoder):
+            self.encoder.checkpoint(tuple(text for _, text in search_records(catalog)))
         self.builds += 1
         return BundleArtifacts(
             catalog_digest=fingerprint,

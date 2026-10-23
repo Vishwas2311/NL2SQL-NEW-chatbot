@@ -5,13 +5,42 @@ from threading import Event
 
 import pytest
 from fastapi.testclient import TestClient
+from nl2sql.api.compatibility import failure_status
 from nl2sql.bootstrap.factory import create_app
 from nl2sql.domain.models import Failure
 from nl2sql.infrastructure.inference.model import MockModel
-from nl2sql.infrastructure.rate_limit import RedisRateLimiter, principal_key
+from nl2sql.infrastructure.rate_limit import (
+    RedisRateLimiter,
+    build_inference_admission,
+    principal_key,
+)
 from nl2sql.settings import Settings
 
 from tests.unit.test_rate_limit import outcome
+
+
+def test_real_inference_leases_are_shared_and_separate_from_chat(redis_configuration):
+    configuration, client = redis_configuration
+    first, second = (build_inference_admission(configuration) for _ in range(2))
+    outer = RedisRateLimiter(configuration)
+    user, other = configuration.principals
+    prefix = configuration.redis_key_prefix
+    try:
+        with outer.chat(user), first.chat(user):
+            assert client.zcard(f"{prefix}:chat:global") == 1
+            assert client.zcard(f"{prefix}:inference:chat:global") == 1
+            with outer.chat(other):
+                with pytest.raises(Failure) as busy:
+                    with second.chat(other):
+                        pytest.fail("Independent workers must share inference capacity")
+                assert busy.value.code == "CHAT_CAPACITY"
+        with second.chat(other):
+            assert client.zcard(f"{prefix}:inference:chat:global") == 1
+        assert client.zcard(f"{prefix}:inference:chat:global") == 0
+    finally:
+        first.close()
+        second.close()
+        outer.close()
 
 
 def test_real_lua_is_atomic_has_ttl_and_prunes_old_entries(redis_configuration):
@@ -51,7 +80,7 @@ def test_real_client_pool_pressure_fails_closed_and_recovers(redis_configuration
             with pytest.raises(Failure) as exhausted:
                 worker.check(configuration.principals[0])
             assert exhausted.value.code == "RATE_LIMIT_UNAVAILABLE"
-            assert exhausted.value.status == 503
+            assert failure_status(exhausted.value) == 503
         finally:
             pool.release(held)
         worker.check(configuration.principals[0])

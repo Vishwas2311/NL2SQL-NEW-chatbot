@@ -53,8 +53,15 @@ def test_example_configurations_are_valid(monkeypatch):
     from pathlib import Path
 
     assert load_settings(env_file=Path(".env.example")).model_mode == "disabled"
+    laptop = load_settings(Path("config/office.example.json"))
+    assert laptop.api_workers == 1 and laptop.max_concurrent_chats == 8
+    assert laptop.max_concurrent_inferences == 1 and laptop.model_context_tokens == 100000
+    selected = load_settings(Path("config/office.example.json"), Path("config/office.env.example"))
+    assert selected.model_context_tokens == 100000 and selected.max_concurrent_inferences == 1
+    assert laptop.rate_limit_backend == "memory" and laptop.embedding_mode == "disabled"
+    assert laptop.model_mode == "private_http" and laptop.model_token_count_endpoint
     with pytest.raises(ValueError, match="Redis rate limiting requires"):
-        load_settings(Path("config/office.example.json"))
+        load_settings(Path("config/office.example.json"), Path("config/vm.env.example"))
     monkeypatch.setenv("NL2SQL_REDIS_URL", "redis://127.0.0.1:6379/0")
     office = load_settings(Path("config/office.example.json"), Path("config/vm.env.example"))
     assert office.embedding_mode == "disabled"
@@ -253,6 +260,7 @@ def test_model_capabilities_share_typed_parser(resources, mode):
         )
 
     settings = Settings(
+        data_classification="synthetic",
         model_mode="private_http",
         model_name="synthetic-plan",
         model_endpoint="http://127.0.0.1/plans",
@@ -387,7 +395,14 @@ def test_normal_managed_runtime_wires_same_encoder_without_startup_discovery(
     kit = MetadataKit(configuration, root)
     encoder = build_embedding(configuration)
     kit.workflow.builder = BundleBuilder(encoder, encoder.identity)
-    kit.factory = RuntimeFactory(configuration, kit.sessions, kit.model, encoder, encoder.identity)
+    kit.factory = RuntimeFactory(
+        configuration,
+        kit.sessions,
+        kit.model,
+        encoder,
+        encoder.identity,
+        inference_admission=kit.inference,
+    )
     kit.workflow.runtime_check = kit.factory.check
     try:
         published = kit.publish()
@@ -525,6 +540,7 @@ def test_restricted_cache_survives_restart_and_rebuilds_corruption(tmp_path):
     (root / ".metadata-private").touch()
     first = build_embedding(settings)
     expected = first.encode(("fictional metric",))
+    first.checkpoint(("fictional metric",))
     second = build_embedding(settings)
 
     class Unavailable:
@@ -617,15 +633,21 @@ def test_component_readiness_and_storage_failure_are_safe(settings, credentials,
 
     resources = build_resources(settings)
 
-    def unavailable(_):
-        raise sqlite3.OperationalError("FICTIONAL_PRIVATE_STORAGE")
+    original_connection = resources.sessions._connection
+
+    class UnavailableConnection:
+        def execute(self, *_args):
+            raise sqlite3.OperationalError("FICTIONAL_PRIVATE_STORAGE")
+
+        def close(self):
+            original_connection.close()
 
     with TestClient(create_app(settings, resources_factory=lambda *_: resources)) as client:
         headers = {"Authorization": "Bearer " + credentials["analyst"]}
         assert client.get("/api/v1/health/components").status_code == 401
         status = client.get("/api/v1/health/components", headers=headers)
         assert status.json()["model"] == "disabled" and status.json()["index"] == "compatible"
-        monkeypatch.setattr(resources.sessions, "list_owned", unavailable)
+        monkeypatch.setattr(resources.sessions, "_connection", UnavailableConnection())
         response = client.get("/ews-chatbot/get_all_sessions", headers=headers)
         assert response.status_code == 503 and "PRIVATE" not in response.text
 
@@ -667,7 +689,14 @@ def test_runtime_builds_coalesce_without_holding_resource_lock(settings, tmp_pat
         kit.workflow.builder = BundleBuilder(encoder, "synthetic-1")
         staged = kit.workflow.stage(kit.catalog, settings.principals)
         spec = kit.repository.get(staged.candidate_id).spec
-        factory = RuntimeFactory(settings, kit.sessions, kit.model, encoder, "synthetic-1")
+        factory = RuntimeFactory(
+            settings,
+            kit.sessions,
+            kit.model,
+            encoder,
+            "synthetic-1",
+            inference_admission=kit.inference,
+        )
         encoder.calls = 0
         encoder.blocking = True
         with ThreadPoolExecutor(2) as workers:

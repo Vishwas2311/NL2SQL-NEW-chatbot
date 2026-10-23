@@ -37,7 +37,7 @@ class CatalogStore:
         """Pin the current snapshot for the entire request."""
         with self._lock:
             if self._active is None:
-                raise Failure("CATALOG_UNAVAILABLE", "The catalog is unavailable.", 503)
+                raise Failure("CATALOG_UNAVAILABLE", "The catalog is unavailable.", "unavailable")
             return self._active
 
     @classmethod

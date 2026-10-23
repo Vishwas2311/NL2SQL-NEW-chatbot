@@ -10,6 +10,7 @@ Scalar = str | int | bool | None
 Bind = str | int
 Row = dict[str, Scalar]
 Identifier = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,62}$")]
+MAX_JOIN_EDGES = 6
 
 
 class FrozenModel(BaseModel):
@@ -18,14 +19,29 @@ class FrozenModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+FailureKind = Literal[
+    "invalid",
+    "unauthenticated",
+    "denied",
+    "not_found",
+    "conflict",
+    "too_large",
+    "busy",
+    "internal",
+    "not_implemented",
+    "unavailable",
+    "timeout",
+]
+
+
 class Failure(Exception):
     """Safe application failure; details never contain raw provider errors."""
 
-    def __init__(self, code: str, message: str, status: int = 422) -> None:
+    def __init__(self, code: str, message: str, kind: FailureKind = "invalid") -> None:
         super().__init__(message)
         self.code = code
         self.message = message
-        self.status = status
+        self.kind = kind
 
 
 class Principal(FrozenModel):

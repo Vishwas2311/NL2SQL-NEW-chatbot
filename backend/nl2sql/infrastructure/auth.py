@@ -32,17 +32,19 @@ class Authenticator:
         with self._lock:
             current = self.principals.get(principal.id)
         if current != principal:
-            raise Failure("DENIED", "Current permissions no longer authorize this request.", 403)
+            raise Failure(
+                "DENIED", "Current permissions no longer authorize this request.", "denied"
+            )
 
     def authenticate(self, authorization: str | None) -> Principal:
         """Never accept a principal, tenant or grant from the browser body."""
         if self.refresh_hook is not None:
             self.refresh_hook()
         if authorization is None or not authorization.startswith("Bearer "):
-            raise Failure("UNAUTHENTICATED", "Valid authentication is required.", 401)
+            raise Failure("UNAUTHENTICATED", "Valid authentication is required.", "unauthenticated")
         token = authorization[7:]
         if not token or len(token) > 8192:
-            raise Failure("UNAUTHENTICATED", "Valid authentication is required.", 401)
+            raise Failure("UNAUTHENTICATED", "Valid authentication is required.", "unauthenticated")
         token_hash = digest(token)
         principal_id: str | None = None
         for grant in self.settings.tokens:
@@ -63,9 +65,9 @@ class Authenticator:
                     principal_id = subject
             except jwt.InvalidTokenError as error:
                 raise Failure(
-                    "UNAUTHENTICATED", "Valid authentication is required.", 401
+                    "UNAUTHENTICATED", "Valid authentication is required.", "unauthenticated"
                 ) from error
         principal = self.principals.get(principal_id or "")
         if principal is None:
-            raise Failure("UNAUTHENTICATED", "Valid authentication is required.", 401)
+            raise Failure("UNAUTHENTICATED", "Valid authentication is required.", "unauthenticated")
         return principal

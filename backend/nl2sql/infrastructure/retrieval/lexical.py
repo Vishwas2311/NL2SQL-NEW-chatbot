@@ -7,6 +7,7 @@ import sqlite3
 from contextlib import ExitStack
 from dataclasses import dataclass
 from functools import cached_property
+from pathlib import Path
 from threading import RLock
 
 from nl2sql.application.ports import Candidate, EmbeddingProvider
@@ -18,7 +19,9 @@ from nl2sql.domain.search import (
     authorized_records,
     schema_records,
 )
-from nl2sql.infrastructure.retrieval.vector_index import VectorIndex, VectorIndexFactory
+from nl2sql.infrastructure.retrieval.vector_index import (
+    LadybugVectorIndex,
+)
 from nl2sql.settings import RetrievalOptions
 
 
@@ -59,63 +62,69 @@ class Retriever:
         catalog: Catalog,
         principals: tuple[Principal, ...],
         encoder: EmbeddingProvider | None = None,
-        vector_factory: VectorIndexFactory | None = None,
         options: RetrievalOptions | None = None,
+        native_dir: Path | None = None,
     ) -> None:
         self.catalog = catalog
         self.options = options or RetrievalOptions()
         self._indexes: dict[tuple[str, ...], SearchPartition] = {}
         self.encoder = encoder
-        self.vector_factory = vector_factory
-        self._native_indexes: dict[tuple[str, ...], VectorIndex] = {}
+        self._native_indexes: dict[tuple[str, ...], LadybugVectorIndex] = {}
         self._vectors: dict[tuple[str, ...], tuple[tuple[str, tuple[float, ...]], ...]] = {}
         with ExitStack() as cleanup:
-            self._build(principals, cleanup)
+            self._build(principals, cleanup, native_dir)
             cleanup.pop_all()
 
-    def _build(self, principals: tuple[Principal, ...], cleanup: ExitStack) -> None:
+    def _build(
+        self, principals: tuple[Principal, ...], cleanup: ExitStack, native_dir: Path | None
+    ) -> None:
         documents = dict(search_records(self.catalog))
+        partitions: dict[tuple[str, ...], tuple[SearchRecord, ...]] = {}
         text_bytes = components = 0
         for principal in principals:
             key = tuple(sorted(principal.metrics))
-            if key in self._indexes:
+            if key in partitions:
                 continue
+            records = authorized_records(self.records, principal)
             text_bytes += sum(
                 len(documents[metric].encode()) for metric in key if metric in documents
             )
-            if text_bytes > 10_000_000 or len(self._indexes) >= 128:
+            text_bytes += sum(len(record.embedding_text.encode()) for record in records)
+            partitions[key] = records
+            if text_bytes > self.options.max_text_bytes or len(partitions) > 128:
                 raise Failure(
-                    "BUNDLE_LIMIT", "Partitioned retrieval exceeds its memory budget.", 413
+                    "BUNDLE_LIMIT", "Partitioned retrieval exceeds its text budget.", "too_large"
                 )
-            connection = sqlite3.connect(":memory:", check_same_thread=False)
-            cleanup.callback(connection.close)
-            connection.execute("CREATE VIRTUAL TABLE docs USING fts5(metric_id UNINDEXED, text)")
-            connection.execute("CREATE VIRTUAL TABLE schema_docs USING fts5(id UNINDEXED, text)")
-            connection.executemany(
-                "INSERT INTO schema_docs VALUES (?, ?)",
-                (
-                    (record.id, record.embedding_text)
-                    for record in authorized_records(self.records, principal)
-                ),
+        native_mb = 32 * sum(bool(key) for key in partitions) if self.encoder else 0
+        if native_mb > self.options.max_native_mb:
+            raise Failure(
+                "BUNDLE_LIMIT",
+                "Partitioned retrieval exceeds its native buffer budget.",
+                "too_large",
             )
-            for metric in self.catalog.metrics:
-                if metric.id in key:
-                    connection.execute(
-                        "INSERT INTO docs VALUES (?, ?)",
-                        (metric.id, documents[metric.id]),
-                    )
-            connection.commit()
-            self._indexes[key] = SearchPartition(connection, RLock())
-            if self.encoder is not None and key:
+        self.budget = {
+            "text_bytes": text_bytes,
+            "native_buffer_mb": native_mb,
+            "partitions": len(partitions),
+        }
+        prepared: dict[tuple[str, ...], tuple[tuple[str, tuple[float, ...]], ...]] = {}
+        if self.encoder is not None:
+            for key in partitions:
+                if not key:
+                    continue
                 allowed = [metric for metric in self.catalog.metrics if metric.id in key]
                 vectors = self.encoder.encode(tuple(documents[metric.id] for metric in allowed))
                 components += sum(len(vector) for vector in vectors)
                 if components > 1_000_000:
-                    raise ValueError("Embedding partitions exceed their memory budget")
+                    raise Failure(
+                        "BUNDLE_LIMIT",
+                        "Embedding partitions exceed their component budget.",
+                        "too_large",
+                    )
                 if (
                     len(vectors) != len(allowed)
                     or not vectors
-                    or len({len(vector) for vector in vectors}) != 1
+                    or len({len(v) for v in vectors}) != 1
                 ):
                     raise ValueError("Embedding output shape does not match the approved metadata")
                 if any(
@@ -126,11 +135,32 @@ class Retriever:
                     for vector in vectors
                 ):
                     raise ValueError("Invalid local embedding vectors")
-                self._vectors[key] = tuple(
+                prepared[key] = tuple(
                     (metric.id, vector) for metric, vector in zip(allowed, vectors, strict=True)
                 )
-                if self.vector_factory is not None:
-                    self._native_indexes[key] = self.vector_factory(self._vectors[key])
+        self.budget["vector_components"] = components
+        for key, records in partitions.items():
+            connection = sqlite3.connect(":memory:", check_same_thread=False)
+            cleanup.callback(connection.close)
+            connection.execute("CREATE VIRTUAL TABLE docs USING fts5(metric_id UNINDEXED, text)")
+            connection.execute("CREATE VIRTUAL TABLE schema_docs USING fts5(id UNINDEXED, text)")
+            connection.executemany(
+                "INSERT INTO schema_docs VALUES (?, ?)",
+                ((record.id, record.embedding_text) for record in records),
+            )
+            for metric in self.catalog.metrics:
+                if metric.id in key:
+                    connection.execute(
+                        "INSERT INTO docs VALUES (?, ?)",
+                        (metric.id, documents[metric.id]),
+                    )
+            connection.commit()
+            self._indexes[key] = SearchPartition(connection, RLock())
+            if key in prepared:
+                self._vectors[key] = prepared[key]
+                index = LadybugVectorIndex(prepared[key], native_dir)
+                cleanup.callback(index.close)
+                self._native_indexes[key] = index
 
     def ambiguous_alias(self, text: str, principal: Principal) -> bool:
         """A shared exact alias cannot select among multiple authorized meanings."""
@@ -188,6 +218,16 @@ class Retriever:
         lexical = tuple(
             Candidate(str(row[0]), "bm25", float(row[1])) for row in rows if row[0] in permitted
         )
+        # Structural terms can identify a metric even when its own document has no match.
+        schema = self.retrieve_schema(text, principal, self.options.max_candidates)
+        seen = {item.metric_id for item in lexical}
+        expanded = list(lexical)
+        for record in schema:
+            for metric in record.metric_scope:
+                if metric in permitted and metric not in seen:
+                    expanded.append(Candidate(metric, "bm25", -record.score))
+                    seen.add(metric)
+        lexical = tuple(expanded[: self.options.max_candidates])
         if self.encoder is None:
             return lexical[: self.options.top_k]
         return self._hybrid(text, key, permitted, lexical)
@@ -208,10 +248,7 @@ class Retriever:
                 or math.hypot(*query) == 0
             ):
                 raise ValueError("Invalid query vector")
-            if scope in self._native_indexes:
-                semantic = list(self._native_indexes[scope].search(query, allowed))
-            else:
-                semantic = self._cosine(query, scope, allowed)
+            semantic = list(self._native_indexes[scope].search(query, allowed))
             semantic = [
                 (key, score)
                 for key, score in semantic[: self.options.max_candidates]
@@ -235,35 +272,8 @@ class Retriever:
             if lexical:
                 return lexical[: self.options.top_k]
             raise Failure(
-                "EMBEDDING_UNAVAILABLE", "Optional retrieval is unavailable.", 503
+                "EMBEDDING_UNAVAILABLE", "Optional retrieval is unavailable.", "unavailable"
             ) from error
-
-    def _cosine(
-        self,
-        query: tuple[float, ...],
-        scope: tuple[str, ...],
-        allowed: set[str],
-    ) -> list[tuple[str, float]]:
-        """Small approved Python fallback; native indexes never repeat this scan."""
-        vector_scores: list[tuple[str, float]] = []
-        for key, vector in self._vectors.get(scope, ()):
-            if key not in allowed:
-                continue
-            if len(query) != len(vector) or any(not math.isfinite(value) for value in query):
-                raise ValueError("Embedding dimension/finite-value mismatch")
-            denominator = math.sqrt(
-                sum(value * value for value in query) * sum(value * value for value in vector)
-            )
-            similarity = (
-                sum(left * right for left, right in zip(query, vector, strict=True)) / denominator
-                if denominator
-                else 0.0
-            )
-            if similarity > 0:
-                vector_scores.append((key, similarity))
-        return sorted(vector_scores, key=lambda item: (-item[1], item[0]))[
-            : self.options.max_candidates
-        ]
 
     def retrieve_schema(
         self,
@@ -318,15 +328,18 @@ class Retriever:
 
     def close(self) -> None:
         """Release snapshot-derived metadata indexes."""
-        for partition in self._indexes.values():
-            partition.connection.close()
+        with ExitStack() as cleanup:
+            for index in self._native_indexes.values():
+                cleanup.callback(index.close)
+            for partition in self._indexes.values():
+                cleanup.callback(partition.connection.close)
 
     def vector_manifest(self) -> dict[str, object]:
         """Scope partition, catalog version and IDs accompany every optional vector entry."""
         metrics = {metric.id: metric for metric in self.catalog.metrics}
         return {
             "catalog_version": self.catalog.version,
-            "backend": "faiss-flat-ip" if self.vector_factory else "exact-cosine",
+            "backend": "ladybug-exact-cosine",
             "partitions": [
                 {
                     "metric_grants": scope,

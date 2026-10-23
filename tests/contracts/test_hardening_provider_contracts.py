@@ -66,6 +66,7 @@ def test_http_retries_only_transient_failures(resources, failure):
         return httpx.Response(200, json=envelope(plan))
 
     settings = Settings(
+        data_classification="synthetic",
         model_name="contract-model",
         model_endpoint="http://127.0.0.1/plans",
         approved_model_hosts=("127.0.0.1",),
@@ -239,7 +240,37 @@ def test_optional_cache_write_failure_keeps_valid_memory_results(tmp_path, monke
 
     monkeypatch.setattr("nl2sql.infrastructure.retrieval.embeddings.save_vectors", unavailable)
     assert len(encoder.encode(("fictional",))) == 1
+    assert "embedding_cache_write_failed" not in caplog.text
+    encoder.checkpoint(("fictional",))
     assert "embedding_cache_write_failed" in caplog.text and "SECRET" not in caplog.text
+
+
+def test_metadata_checkpoint_does_not_block_encoding_or_persist_question_vectors(
+    tmp_path, monkeypatch
+):
+    from concurrent.futures import ThreadPoolExecutor
+
+    (tmp_path / ".metadata-private").touch()
+    encoder = build_embedding(embedding_settings(index_storage_path=tmp_path))
+    encoder.encode(("metadata", "private question"))
+    entered, release = Event(), Event()
+    saved = []
+
+    def save(*args):
+        saved.append(args[-1])
+        entered.set()
+        assert release.wait(timeout=10)
+
+    monkeypatch.setattr("nl2sql.infrastructure.retrieval.embeddings.save_vectors", save)
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        checkpoint = workers.submit(encoder.checkpoint, ("metadata",))
+        try:
+            assert entered.wait(timeout=3)
+            assert workers.submit(encoder.encode, ("metadata",)).result(timeout=3)
+        finally:
+            release.set()
+        checkpoint.result(timeout=3)
+    assert len(saved) == 1 and len(saved[0]) == 1
 
 
 @pytest.mark.parametrize("step", ["acquire", "rollback", "release", "drop"])
@@ -288,6 +319,7 @@ def test_cache_compatibility_corruption_and_path_guards(tmp_path, monkeypatch):
     (tmp_path / ".metadata-private").touch()
     encoder = build_embedding(embedding_settings(index_storage_path=tmp_path))
     encoder.encode(("fictional",))
+    encoder.checkpoint(("fictional",))
     path = restricted_path(tmp_path, encoder.identity)
     original = json.loads(path.read_text())
     for update in (
@@ -338,7 +370,9 @@ def test_cancelled_stream_closes_without_parsing_or_retry(resources):
             closed.append(True)
 
     settings = Settings(
-        model_endpoint="http://127.0.0.1/plans", approved_model_hosts=("127.0.0.1",)
+        data_classification="synthetic",
+        model_endpoint="http://127.0.0.1/plans",
+        approved_model_hosts=("127.0.0.1",),
     )
     with httpx.Client(
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=Stream()))
@@ -421,6 +455,7 @@ def test_model_missing_role_and_legacy_tool_calls_are_rejected(resources, change
             "arguments": "untrusted",
         }
     settings = Settings(
+        data_classification="synthetic",
         model_name="contract-model",
         model_endpoint="http://127.0.0.1/plans",
         approved_model_hosts=("127.0.0.1",),

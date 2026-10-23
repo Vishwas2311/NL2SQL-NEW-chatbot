@@ -7,12 +7,12 @@ name = "ews-nl2sql"
 version = "0.1.0"
 description = "V4.3 governed NL-to-SQL backend with shared Redis admission"
 requires-python = ">=3.13,<3.14"
-dependencies = ["fastapi", "uvicorn", "pydantic>=2,<3", "pydantic-settings", "httpx", "networkx", "sqlglot", "PyJWT"]
+dependencies = ["fastapi", "uvicorn", "pydantic>=2,<3", "pydantic-settings", "httpx", "ladybug==0.21.2", "sqlglot", "PyJWT"]
 
 [project.optional-dependencies]
 oracle = ["oracledb"]
 redis = ["redis==8.1.0"]
-dev = ["pytest", "pytest-cov", "ruff", "pylint", "pyright", "pre-commit", "types-networkx"]
+dev = ["pytest", "pytest-cov", "ruff", "pylint", "pyright", "pre-commit"]
 
 [tool.setuptools.packages.find]
 where = ["backend"]

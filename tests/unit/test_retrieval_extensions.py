@@ -31,7 +31,7 @@ class ToyEncoder:
 
 
 def test_hybrid_search_and_authorized_metadata_only(resources):
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     user = resources.auth.principals["analyst"].model_copy(update={"metrics": ("account_count",)})
     encoder = ToyEncoder()
     retriever = Retriever(catalog, (user,), encoder)
@@ -60,7 +60,7 @@ def test_synonyms_and_nested_exact_spans(resources, question, key):
 
 
 def test_shared_alias_clarifies_even_with_a_covering_view(resources):
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     metrics = tuple(
         metric.model_copy(update={"aliases": (*metric.aliases, "position")})
         if metric.id in {"loan_exposure", "loan_count"}
@@ -85,7 +85,7 @@ def test_shared_alias_clarifies_even_with_a_covering_view(resources):
 
 
 def test_encoder_failures_fall_back_or_fail_safely(resources):
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     user = resources.auth.principals["analyst"]
     encoder = ToyEncoder()
     retriever = Retriever(catalog, (user,), encoder)
@@ -107,7 +107,7 @@ def test_encoder_failures_fall_back_or_fail_safely(resources):
 
 
 def test_historical_current_only_relationship_fails_closed(resources):
-    catalog = resources.service.store.snapshot()
+    catalog = resources.service.compiler.catalog
     edge = catalog.relations[0].model_copy(update={"temporal": "current_only"})
     changed = catalog.model_copy(update={"relations": (edge, *catalog.relations[1:])})
     validate_catalog(changed)

@@ -15,7 +15,8 @@ import jwt
 from pydantic import Field, TypeAdapter
 
 from nl2sql.application.metadata.refresh import MetadataRefreshService
-from nl2sql.application.metadata.workflow import MetadataWorkflow
+from nl2sql.application.metadata.workflow import MetadataWorkflow, StageOutcome
+from nl2sql.bootstrap.office_checks import office_preflight
 from nl2sql.bootstrap.runtime import RuntimeFactory
 from nl2sql.domain.models import Catalog, Failure, FrozenModel, Principal
 from nl2sql.domain.physical import PhysicalInventory
@@ -30,9 +31,10 @@ from nl2sql.infrastructure.metadata.config import (
 from nl2sql.infrastructure.metadata.discovery import FileDiscovery
 from nl2sql.infrastructure.metadata.governance import ApprovalAuthority
 from nl2sql.infrastructure.metadata.store import MetadataRepository
+from nl2sql.infrastructure.rate_limit import MemoryRateLimiter
 from nl2sql.infrastructure.retrieval.embeddings import build_embedding
 from nl2sql.infrastructure.sessions import SessionStore
-from nl2sql.settings import RetrievalOptions, load_settings
+from nl2sql.settings import RetrievalOptions, load_settings, selected_environment
 
 
 class MetadataOptions(FrozenModel):
@@ -41,6 +43,7 @@ class MetadataOptions(FrozenModel):
     command: Literal["metadata"] = "metadata"
     action: Literal[
         "bootstrap",
+        "prepare",
         "sync",
         "status",
         "inspect",
@@ -94,6 +97,7 @@ def add_metadata_parser(parser: argparse.ArgumentParser) -> None:
     commands = parser.add_subparsers(dest="action", required=True)
     for action in (
         "bootstrap",
+        "prepare",
         "sync",
         "status",
         "inspect",
@@ -110,13 +114,15 @@ def add_metadata_parser(parser: argparse.ArgumentParser) -> None:
         command = commands.add_parser(action)
         command.add_argument("--root", type=Path, default=Path(".local/metadata-v43"))
         command.add_argument("--env-file", type=Path)
-        if action in {"bootstrap", "sync"}:
+        if action in {"bootstrap", "sync", "prepare"}:
             command.add_argument("--source", choices=("synthetic", "file", "oracle"))
             command.add_argument("--settings", type=Path)
             command.add_argument("--file", type=Path)
             command.add_argument("--semantic-file", type=Path)
             command.add_argument("--grants-file", type=Path)
             command.add_argument("--dry-run", action="store_true")
+        if action == "prepare":
+            command.add_argument("--approval-file", type=Path)
         if action in {"inspect", "approve", "publish", "sign-demo"}:
             command.add_argument("--candidate-id", required=True)
         if action == "approve":
@@ -136,10 +142,16 @@ def add_metadata_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def run_metadata(options: MetadataOptions) -> dict[str, object]:
+    """Supply one explicit environment to all discovery, query, model and trust adapters."""
+    with selected_environment(options.env_file):
+        return _run_selected(options)
+
+
+def _run_selected(options: MetadataOptions) -> dict[str, object]:
     """A first dry run uses temporary storage and leaves the target path untouched."""
     if (
         options.dry_run
-        and options.action in {"bootstrap", "sync"}
+        and options.action in {"bootstrap", "sync", "prepare"}
         and not (options.root / "metadata.db").exists()
     ):
         with tempfile.TemporaryDirectory(prefix="nl2sql-bootstrap-preview-") as directory:
@@ -153,7 +165,9 @@ def _prepare_source(options: MetadataOptions, root: Path, temporary: bool) -> So
         profile = load_profile(options.root)
         if options.source is not None and options.source != profile.source:
             raise Failure(
-                "SOURCE_MISMATCH", "Choose a separate store for a different source profile.", 409
+                "SOURCE_MISMATCH",
+                "Choose a separate store for a different source profile.",
+                "conflict",
             )
         if options.settings is not None:
             settings_path = options.settings.resolve()
@@ -213,14 +227,29 @@ def _run(options: MetadataOptions, root: Path, temporary: bool) -> dict[str, obj
         return {"active": None, "candidates": [], "schedule_enabled": False}
     profile = (
         _prepare_source(options, root, temporary)
-        if options.action in {"bootstrap", "sync"}
+        if options.action in {"bootstrap", "sync", "prepare"}
         else load_profile(root)
     )
     if options.action == "demo-trust":
         return _demo_trust(root, profile)
+    if profile.source == "oracle" and options.action != "status":
+        if profile.settings_path is None:
+            raise Failure(
+                "OFFICE_CONFIGURATION",
+                "Select protected runtime settings for Oracle metadata operations.",
+                "invalid",
+            )
+        effective = load_settings(profile.settings_path, options.env_file).model_copy(
+            update={
+                "metadata_root": root,
+                "query_backend": "oracle",
+                "data_classification": "restricted",
+            }
+        )
+        office_preflight(effective)
     with ExitStack() as cleanup:
         read_only = options.action == "status" or (
-            options.dry_run and not temporary and options.action in {"bootstrap", "sync"}
+            options.dry_run and not temporary and options.action in {"bootstrap", "sync", "prepare"}
         )
         repository = MetadataRepository(root, read_only=read_only)
         cleanup.callback(repository.close)
@@ -236,18 +265,22 @@ def _run(options: MetadataOptions, root: Path, temporary: bool) -> dict[str, obj
         encoder = None
         if profile.settings_path is not None and options.action in {
             "bootstrap",
+            "prepare",
             "sync",
             "publish",
             "rollback",
             "monitor",
         }:
             settings = load_settings(profile.settings_path, options.env_file)
+            if options.dry_run:
+                settings = settings.model_copy(update={"index_storage_path": None})
             encoder = build_embedding(settings)
             if encoder is not None:
                 cleanup.callback(encoder.close)
             sessions = (
                 SessionStore(settings.data_dir / "sessions.db")
                 if options.action in {"publish", "rollback"}
+                or (options.action == "prepare" and not options.dry_run)
                 else None
             )
             if sessions is not None:
@@ -258,6 +291,8 @@ def _run(options: MetadataOptions, root: Path, temporary: bool) -> dict[str, obj
                     DisabledModel(),
                     encoder,
                     encoder.identity if encoder else None,
+                    # Publication probes use DisabledModel and never perform inference.
+                    inference_admission=MemoryRateLimiter(1),
                 )
         workflow = MetadataWorkflow(
             repository,
@@ -267,18 +302,19 @@ def _run(options: MetadataOptions, root: Path, temporary: bool) -> dict[str, obj
                 encoder,
                 encoder.identity if encoder else None,
                 retrieval_options=settings.retrieval_options if settings else RetrievalOptions(),
+                native_dir=settings.graph_native_dir if settings else None,
             ),
             runtime_check=factory.check if factory else None,
         )
         token = os.environ.get("NL2SQL_METADATA_ADMIN_TOKEN")
-        if options.action in {"bootstrap", "sync"}:
+        if options.action in {"bootstrap", "sync", "prepare"}:
             active = repository.control().active
             catalog = (
                 Catalog.model_validate_json(_bounded_read(options.semantic_file, 5_000_000))
                 if options.semantic_file
                 else (
                     Catalog.model_validate_json(settings.catalog_path.read_text(encoding="utf-8"))
-                    if settings is not None and active is None
+                    if settings is not None and active is None and settings.catalog_path.is_file()
                     else None
                 )
             )
@@ -289,10 +325,47 @@ def _run(options: MetadataOptions, root: Path, temporary: bool) -> dict[str, obj
                 if options.grants_file
                 else (settings.principals if settings is not None and active is None else None)
             )
-            return workflow.stage(catalog, grants, options.dry_run).model_dump(mode="json")
+            outcome = workflow.stage(catalog, grants, options.dry_run)
+            return (
+                _prepare_runtime(options, workflow, factory, outcome, token)
+                if options.action == "prepare"
+                else outcome.model_dump(mode="json")
+            )
         if options.action in {"approve", "publish", "rollback"}:
             return _apply_decision(options, workflow, token)
         return _admin_operation(options, profile, workflow, token)
+
+
+def _prepare_runtime(
+    options: MetadataOptions,
+    workflow: MetadataWorkflow,
+    factory: RuntimeFactory | None,
+    outcome: StageOutcome,
+    token: str | None,
+) -> dict[str, object]:
+    """Preparation derives resources automatically; signed certification remains authoritative."""
+    result = outcome.model_dump(mode="json")
+    candidate = outcome.candidate_id
+    if not options.dry_run and not outcome.issues and candidate is not None:
+        if outcome.state == "pending_approval" and options.approval_file is not None:
+            manifest = ApprovalFile.model_validate_json(
+                _bounded_read(options.approval_file, 150_000)
+            )
+            workflow.approve(candidate, manifest.approvals, token)
+        record = workflow.repository.get(candidate)
+        if record.state == "certified":
+            workflow.publish(candidate, token)
+            result["state"] = "ready"
+        elif workflow.repository.control().active == candidate:
+            workflow.verify_record(record)
+            if factory is None:
+                raise Failure(
+                    "RUNTIME_CHECK_REQUIRED", "Select runtime settings for preparation.", "conflict"
+                )
+            factory.check(record.spec)
+            result["state"] = "ready"
+    result["next_step"] = "serve" if result["state"] == "ready" else "review_metadata"
+    return result
 
 
 def _apply_decision(
@@ -322,7 +395,7 @@ def _admin_operation(
     root = options.root.resolve()
     authority = workflow.authority
     if authority is None:
-        raise Failure("ADMIN_CONFIGURATION", "Administrative trust anchors are required.", 403)
+        raise Failure("ADMIN_CONFIGURATION", "Administrative trust anchors are required.", "denied")
     action = (
         "approve"
         if options.action == "sign-demo"
@@ -365,14 +438,16 @@ def _admin_operation(
     ) / (record.spec.id + ".json")
     if not output.resolve().is_relative_to(root.resolve()):
         raise Failure(
-            "PRIVATE_OUTPUT", "Review output must stay in restricted metadata storage.", 403
+            "PRIVATE_OUTPUT", "Review output must stay in restricted metadata storage.", "denied"
         )
     output.parent.mkdir(parents=True, exist_ok=True)
     if options.action == "sign-demo":
         if profile.source != "synthetic" or record.spec.inventory.classification != "synthetic":
-            raise Failure("DEMO_ONLY", "Demo signatures cannot certify office metadata.", 403)
+            raise Failure("DEMO_ONLY", "Demo signatures cannot certify office metadata.", "denied")
         if not isinstance(authority, ApprovalAuthority):
-            raise Failure("DEMO_ONLY", "Demo signing requires the explicit local adapter.", 403)
+            raise Failure(
+                "DEMO_ONLY", "Demo signing requires the explicit local adapter.", "denied"
+            )
         manifest = ApprovalFile(
             approvals=tuple(
                 authority.sign_synthetic(key, record.spec.id, profile.source_id)
@@ -397,7 +472,7 @@ def _demo_trust(root: Path, profile: SourceProfile) -> dict[str, object]:
     """Explicit fictional bootstrap only; never auto-generates company approval evidence."""
     if profile.source != "synthetic":
         raise Failure(
-            "DEMO_ONLY", "Local demo trust is restricted to fictional synthetic sources.", 403
+            "DEMO_ONLY", "Local demo trust is restricted to fictional synthetic sources.", "denied"
         )
     path = root / "demo-credentials.json"
     if path.exists():

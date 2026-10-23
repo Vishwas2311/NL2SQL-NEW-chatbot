@@ -3,30 +3,27 @@
 from __future__ import annotations
 
 import re
-from typing import Protocol, cast
 
-import networkx as nx
-
-from nl2sql.domain.models import Catalog, Dimension, Failure, Relation, SemanticView, view_policy
+from nl2sql.application.graph import DirectedGraph, GraphTraversal
+from nl2sql.domain.models import (
+    MAX_JOIN_EDGES,
+    Catalog,
+    Dimension,
+    Failure,
+    Relation,
+    SemanticView,
+    view_policy,
+)
 from nl2sql.telemetry import measured
-
-
-class _PathFinder(Protocol):
-    """The official dispatcher stubs leave backend kwargs unknown; only three arguments are used."""
-
-    def __call__(self, graph: nx.Graph[str], source: str, target: str) -> list[str]: ...
-
-
-_shortest_path = cast(_PathFinder, vars(nx)["shortest_path"])
 
 
 class JoinGraph:
     """Traverse only certified, unambiguous, grain-preserving directed edges."""
 
-    def __init__(self, catalog: Catalog) -> None:
+    def __init__(self, catalog: Catalog, traversal: GraphTraversal | None = None) -> None:
         self.catalog = catalog
-        # NetworkX's official stubs are generic; Pylint inspects the runtime-only class.
-        self.graph: nx.DiGraph[str] = nx.DiGraph()  # pylint: disable=unsubscriptable-object
+        self.graph = DirectedGraph()
+        self.traversal = traversal or self.graph
         for table in catalog.tables:
             self.graph.add_node(table.id, grain=table.grain, version=catalog.version)
         for relation in catalog.relations:
@@ -52,18 +49,18 @@ class JoinGraph:
             for edge in self.catalog.relations
             if edge.id in view.relationships and edge.certified
         }
-        graph = self.graph.edge_subgraph([(edge.left, edge.right) for edge in allowed.values()])
+        pairs = {(edge.left, edge.right) for edge in allowed.values()}
+        nodes = {node for pair in pairs for node in pair}
         chosen: dict[str, Relation] = {}
         for target in sorted(targets - {view.root}):
-            if view.root not in graph or target not in graph:
+            if view.root not in nodes or target not in nodes:
                 raise Failure("INVALID_JOIN", "The approved relationship is unavailable.")
-            try:
-                path = _shortest_path(graph, view.root, target)
-            except nx.NetworkXNoPath as error:
-                raise Failure("AMBIGUOUS_JOIN", "The relationship needs clarification.") from error
-            if len(path) > 7:
+            path = self.traversal.shortest_path(view.root, target, pairs)
+            if not path:
+                raise Failure("AMBIGUOUS_JOIN", "The relationship needs clarification.")
+            if len(path) > MAX_JOIN_EDGES + 1:
                 raise Failure("INVALID_JOIN", "The approved relationship exceeds its edge budget.")
-            if _alternative_path(graph, path):
+            if _alternative_path(self.traversal, pairs, path):
                 raise Failure("AMBIGUOUS_JOIN", "The relationship needs clarification.")
             for left, right in zip(path, path[1:], strict=False):
                 matching = [
@@ -94,15 +91,13 @@ class JoinGraph:
         return tuple(ordered)
 
 
-def _alternative_path(graph: nx.DiGraph[str], path: list[str]) -> bool:
-    """At most six bounded breadth-first searches replace exponential simple-path enumeration."""
-    for left, right in zip(path, path[1:], strict=False):
-        alternate = nx.restricted_view(graph, [], [(left, right)])
-        try:
-            route = _shortest_path(alternate, path[0], path[-1])
-        except nx.NetworkXNoPath:
-            continue
-        if len(route) <= 7:
+def _alternative_path(
+    graph: GraphTraversal, allowed: set[tuple[str, str]], path: list[str]
+) -> bool:
+    """Reject any other approved path within the six-edge budget."""
+    for pair in zip(path, path[1:], strict=False):
+        route = graph.shortest_path(path[0], path[-1], allowed, pair)
+        if route and len(route) <= MAX_JOIN_EDGES + 1:
             return True
     return False
 
@@ -195,7 +190,7 @@ def validate_catalog(catalog: Catalog) -> None:
 
 def _validate_metric_dependencies(catalog: Catalog) -> None:
     metrics = {metric.id: metric for metric in catalog.metrics}
-    dependencies: nx.DiGraph[str] = nx.DiGraph()  # pylint: disable=unsubscriptable-object
+    dependencies = DirectedGraph()
     dependencies.add_nodes_from(metrics)
     for metric in catalog.metrics:
         if metric.expression is not None:
@@ -226,7 +221,7 @@ def _validate_metric_dependencies(catalog: Catalog) -> None:
                 or (metric.expression.kind == "ratio" and metric.scale != 1)
             ):
                 raise ValueError("Derived metric output unit/scale is incompatible")
-    if not nx.is_directed_acyclic_graph(dependencies):
+    if not dependencies.acyclic():
         raise ValueError("Metric dependency cycle")
 
 

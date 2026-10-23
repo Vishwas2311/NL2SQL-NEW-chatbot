@@ -4,8 +4,10 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from nl2sql.application.catalog import JoinGraph
+from nl2sql.application.graph import GraphTraversal
 from nl2sql.domain.fingerprints import catalog_hash, digest
 from nl2sql.domain.models import (
+    MAX_JOIN_EDGES,
     Catalog,
     DateRange,
     Failure,
@@ -166,17 +168,18 @@ class PlanValidator:
         max_rows: int = 1000,
         max_metrics: int = 5,
         max_dimensions: int = 5,
-        max_join_edges: int = 6,
+        max_join_edges: int = MAX_JOIN_EDGES,
+        traversal: GraphTraversal | None = None,
     ) -> None:
         self.catalog = catalog
-        self.graph = JoinGraph(catalog)
+        self.graph = JoinGraph(catalog, traversal)
         self.catalog_digest = catalog_hash(catalog)
         self.max_rows = max_rows
         if not (
             1 <= max_rows <= 1000
             and 1 <= max_metrics <= 5
             and 1 <= max_dimensions <= 5
-            and 0 <= max_join_edges <= 6
+            and 0 <= max_join_edges <= MAX_JOIN_EDGES
         ):
             raise ValueError("Plan budgets exceed supported compiler ceilings")
         self.limits = (max_metrics, max_dimensions, max_join_edges)
@@ -194,16 +197,16 @@ class PlanValidator:
 
     def _validate(self, plan: QueryPlan, principal: Principal) -> ValidatedPlan:
         if plan.catalog_version != self.catalog.version:
-            raise Failure("CATALOG_STALE", "The catalog changed; please ask again.", 409)
+            raise Failure("CATALOG_STALE", "The catalog changed; please ask again.", "conflict")
         if not set(plan.metrics) <= set(principal.metrics):
-            raise Failure("DENIED", "This request is outside your authorized scope.", 403)
+            raise Failure("DENIED", "This request is outside your authorized scope.", "denied")
         views = {view.id: view for view in self.catalog.views if view.certified}
         view = views.get(plan.view_id)
         if view is None or plan.view_version != view.version:
-            raise Failure("VIEW_STALE", "This business view is unavailable.", 409)
+            raise Failure("VIEW_STALE", "This business view is unavailable.", "conflict")
         policy = view_policy(view)
         if policy.strategy == "tenant_scope" and not scope_values(policy, principal):
-            raise Failure("DENIED", "No authorized data scope is available.", 403)
+            raise Failure("DENIED", "No authorized data scope is available.", "denied")
         if not set(plan.metrics) <= set(view.metrics):
             raise Failure("UNKNOWN_METRIC", "The requested metric is unsupported.")
         if not set(plan.dimensions) <= set(view.dimensions):
