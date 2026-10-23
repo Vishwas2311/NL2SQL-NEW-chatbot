@@ -492,3 +492,17 @@ were not provided as a tested integration. On the actual approved runtime:
 Keep independent SQL validation, Decimal precision, read-only execution and signed business/
 access certification throughout. The review's illustrative 5ms/sub-15ms timings are not measured
 office guarantees. The preserved UI and EWS contracts are unchanged.
+
+## CI portability corrections (2026-10-24)
+
+The Windows GitHub runner uses its preinstalled OpenSSL distribution at
+`C:\Program Files\OpenSSL\bin` for the two required native graph DLLs. Git's installation
+directory is not a stable OpenSSL source. The workflow still verifies both required DLLs
+before running the complete checks; it does not download an unreviewed native library.
+This is the hosted-runner configuration, not an assumed path on an office machine.
+
+Pre-commit's project interpreter wrapper keeps the absolute `.venv` executable path
+without dereferencing symlinks. On POSIX, resolving `.venv/bin/python` to the system binary
+loses virtual-environment package selection. The symlink regression runs on every platform;
+no quality gate is removed. GitHub's macOS native graph/compiler/API tests and Linux Redis
+tests are synthetic integration evidence, not company Oracle or real SLM qualification.

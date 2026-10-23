@@ -6,8 +6,8 @@ jobs:
   local-quality:
     runs-on: windows-latest
     env:
-      NL2SQL_GRAPH_NATIVE_DIR: 'C:\Program Files\Git\mingw64\bin'
-      NL2SQL_TEST_GRAPH_NATIVE_DIR: 'C:\Program Files\Git\mingw64\bin'
+      NL2SQL_GRAPH_NATIVE_DIR: 'C:\Program Files\OpenSSL\bin'
+      NL2SQL_TEST_GRAPH_NATIVE_DIR: 'C:\Program Files\OpenSSL\bin'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

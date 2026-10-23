@@ -1,8 +1,10 @@
 """Quality gates accept only an explicitly selected isolated Redis test environment."""
 
+from pathlib import Path
+
 import pytest
 
-from scripts import check
+from scripts import check, hook
 
 
 @pytest.mark.parametrize(
@@ -38,3 +40,23 @@ def test_check_runs_every_gate_with_explicit_test_redis(tmp_path, monkeypatch):
         "pytest",
         "pre_commit",
     ]
+
+
+def test_hook_keeps_venv_interpreter_path_when_it_is_a_symlink(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    executable = Path(".venv") / ("Scripts/python.exe" if hook.os.name == "nt" else "bin/python")
+    expected = str(executable.absolute())
+    # Simulate POSIX venv symlinks on every test platform.
+    original = Path.resolve
+
+    def resolve(path, *args, **kwargs):
+        if path == executable:
+            return tmp_path / "system-python"
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", resolve)
+    monkeypatch.setattr(hook.sys, "argv", ["hook", "ruff", "check", "example.py"])
+    calls = []
+    monkeypatch.setattr(hook.subprocess, "run", lambda command, **_: calls.append(command))
+    hook.main()
+    assert calls == [[expected, "-m", "ruff", "check", "example.py"]]

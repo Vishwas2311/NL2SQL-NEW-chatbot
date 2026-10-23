@@ -9,7 +9,8 @@ from pathlib import Path
 def main() -> None:
     """Run the selected quality module using the same interpreter as application tests."""
     executable = Path(".venv") / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-    subprocess.run([str(executable.resolve()), "-m", *sys.argv[1:]], check=True)
+    # POSIX venv executables are symlinks; resolving them loses the environment.
+    subprocess.run([str(executable.absolute()), "-m", *sys.argv[1:]], check=True)
 
 
 if __name__ == "__main__":
