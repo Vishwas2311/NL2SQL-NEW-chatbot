@@ -72,7 +72,7 @@ never invents business definitions/access approval and downloads no model weight
 
 
 Architecture remediation (24 October 2026) adds versioned storage upgrades, typed model
-clarification, current-scope follow-up context, complete schema-text/native-buffer preflight and
+clarification, current-scope follow-up context, schema-text and estimated projection-memory preflight and
 shared request/error handling. The office template defaults to exact/BM25 retrieval; embeddings
 remain optional and are built automatically when approved and enabled. Use private copies of
 `config/office.example.json` and the numbered `config/office.env.example`.

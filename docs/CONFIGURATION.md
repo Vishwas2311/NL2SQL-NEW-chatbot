@@ -410,10 +410,11 @@ Application deadlines begin before authentication, bound reload-lock waits, and 
 by nested chat calls. Late resource candidates are closed rather than activated. A native provider
 must still implement its own interruption; these controls do not forcibly kill arbitrary Python code.
 
-FTS preflight counts metric and schema document text across unique grant partitions. Native vector
-buffer ceilings are checked before encoding/allocation; vector components are bounded before native
-index allocation. These are allocation/input budgets, not process RSS caps. Workers and overlapping
-bundles multiply costs; measure the actual SLM and target machine before raising limits.
+FTS preflight counts metric and schema document text across unique grant partitions. Vector
+partition memory estimates are checked before encoding/allocation; vector components are bounded
+before native index allocation. These are admission/input budgets, not native allocator or process
+RSS caps. Workers and overlapping bundles multiply costs; measure the actual SLM and target machine
+before raising limits.
 
 RuntimeFactory captures Oracle query configuration once during composition. Discovery and query
 accounts remain separate. Office preflight rejects known unpatched SQLite, relative/repository

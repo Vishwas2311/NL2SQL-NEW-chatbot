@@ -378,8 +378,9 @@ Direct QueryPlan adapter replies remain accepted for compatibility. Clarificatio
 
 The office example now starts without embeddings or persistent vector snapshots. Enabling an
 approved private encoder still generates SurrealDB vectors automatically during governed preparation.
-All authorized metric/schema text is preflighted, and native vector buffers have an explicit
-per-retriever ceiling. Embedding checkpoints are metadata-only preparation work, not query writes.
+All authorized metric/schema text is preflighted. Vector partitions have a per-retriever
+memory admission estimate, not a native allocator cap. Embedding checkpoints are metadata-only
+preparation work, not query writes.
 
 Versioned SQLite upgrades retain legacy data, payload identities and timestamps. Unknown future
 formats reject safely. Application deadlines cover authentication/adoption waits and nested chat
