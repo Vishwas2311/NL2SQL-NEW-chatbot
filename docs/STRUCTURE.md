@@ -34,7 +34,8 @@ backend/nl2sql/
     databases/            # Read-only SQLite and gated Oracle execution/context adapters
     metadata/             # Discovery, repositories, signatures, catalog loading and builds
     retrieval/            # SQLite FTS5, embeddings and optional native vector adapters
-    inference/            # Disabled, scripted and HTTP model providers
+    inference/            # Disabled/scripted plus configurable Chat Completions/Responses
+      http_protocol.py    # Wire schema, network/data gate, Responses normalization and safe errors
   api/                    # FastAPI transport, public schemas and middleware
   bootstrap/              # Composition roots, request leases and spawned-worker factory
     sqlite_runtime.py     # Standard-library-only Python/SQLite/FTS5/TLS diagnostic

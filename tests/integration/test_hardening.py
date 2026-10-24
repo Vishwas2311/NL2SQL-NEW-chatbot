@@ -59,7 +59,9 @@ def test_example_configurations_are_valid(monkeypatch):
     selected = load_settings(Path("config/office.example.json"), Path("config/office.env.example"))
     assert selected.model_context_tokens == 100000 and selected.max_concurrent_inferences == 1
     assert laptop.rate_limit_backend == "memory" and laptop.embedding_mode == "disabled"
-    assert laptop.model_mode == "private_http" and laptop.model_token_count_endpoint
+    assert laptop.model_mode == "configured_http" and laptop.model_token_budget == "provider"
+    assert laptop.model_token_count_endpoint is None
+    assert laptop.model_restricted_data_authorized is False
     with pytest.raises(ValueError, match="Redis rate limiting requires"):
         load_settings(Path("config/office.example.json"), Path("config/vm.env.example"))
     monkeypatch.setenv("NL2SQL_REDIS_URL", "redis://127.0.0.1:6379/0")

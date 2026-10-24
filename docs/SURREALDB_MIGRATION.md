@@ -31,7 +31,7 @@ not features inferred from newer SDKs or a separate embedded beta package.
 
 1. Stop the office supervisor, all API workers and monitor. Back up the protected SQLite
    authority, approved catalogs, signatures, settings, cache and graph artifacts.
-2. Install the updated pinned lock files into a fresh Python 3.13 virtual environment on
+2. Install the updated pinned requirements.txt into a fresh Python 3.13 virtual environment on
    approved local storage. Keep the previous environment for rollback. Do not copy a
    virtual environment from another machine or modify Program Files/native system DLLs.
 3. Remove `graph_buffer_mb` and `graph_native_dir` from protected settings JSON and remove

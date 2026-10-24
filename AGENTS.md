@@ -46,7 +46,8 @@ FAISS/factory adapters are removed. Configured embeddings use embedded SurrealDB
 projections, built automatically with compatible runtime resources. `office` prepares
 approved Oracle resources and supervises a separate monitor; bare `serve` never starts
 scheduling. Preserve signed certification and synthetic-only local tests. Restricted HTTP
-planning requires same-origin runtime token counting with output reserve.
+planning originally required same-origin runtime token counting with output reserve;
+the explicit provider strategy authorized below supersedes that universal requirement.
 
 2026-10-24: user approved replacing LadybugDB completely with embedded SurrealDB Python
 2.0.0 after the isolated office probe passed. This supersedes older engine requirements.
@@ -68,3 +69,11 @@ project/build metadata and one complete, version-pinned requirements.txt for pip
 Setup and CI use that file; Windows x64 CPU embedding pins have platform markers. Do not
 reintroduce separate custom requirements lock files or change qualified package versions
 as part of a naming cleanup. Preserve office preflight, private profiles and data.
+
+2026-10-24: user authorized configurable local/Azure/other compatible HTTP planning.
+`configured_http` separates protocol/authentication from private or approved-HTTPS network
+policy. Restricted metadata requires actual endpoint authorization and per-call classification
+checks. Provider budgeting uses server context/output enforcement plus local byte/deadline
+limits; optional runtime budgeting retains same-origin counting and output reserve. Do not
+invent a token-counter endpoint or claim every proprietary model API is compatible. Preserve
+legacy mode behavior, typed plans, independent SQL validation and all Oracle grant controls.

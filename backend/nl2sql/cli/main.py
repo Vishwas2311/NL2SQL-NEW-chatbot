@@ -14,7 +14,7 @@ from nl2sql.cli.metadata import MetadataOptions, add_metadata_parser, run_metada
 from nl2sql.cli.office import run_office
 from nl2sql.domain.models import Failure
 from nl2sql.evaluation.synthetic import initialize
-from nl2sql.infrastructure.inference.model import build_model
+from nl2sql.infrastructure.inference.model import build_model, probe_model
 from nl2sql.infrastructure.rate_limit import build_rate_limiter
 from nl2sql.infrastructure.retrieval.embeddings import build_embedding
 from nl2sql.infrastructure.sessions import SessionStore
@@ -31,6 +31,7 @@ def main() -> None:
         "office",
         "validate-config",
         "check-redis",
+        "check-model",
         "purge-sessions",
     ):
         command = commands.add_parser(name)
@@ -154,20 +155,23 @@ def _run(arguments: argparse.Namespace, parser: argparse.ArgumentParser) -> None
             )
         )
         return
-    if arguments.command == "validate-config":
+    if arguments.command in {"check-model", "validate-config"}:
         try:
-            office_preflight(configuration)
-            build_model(configuration).close()
-            encoder = build_embedding(configuration)
-            if encoder is not None:
-                encoder.close()
-        except Failure as error:
-            parser.exit(1, json.dumps({"code": error.code, "message": error.message}) + "\n")
-        except (ValueError, OSError):
-            parser.exit(1, "Provider configuration is invalid; values are omitted.\n")
-        print(
-            json.dumps(
-                {
+            if arguments.command == "check-model":
+                result = probe_model(configuration)
+                output = {
+                    "model": "typed_decision_received",
+                    "api": configuration.model_api,
+                    "input_tokens": result.input_tokens,
+                    "output_tokens": result.output_tokens,
+                }
+            else:
+                office_preflight(configuration)
+                build_model(configuration).close()
+                encoder = build_embedding(configuration)
+                if encoder is not None:
+                    encoder.close()
+                output = {
                     "valid": True,
                     "model": configuration.model_mode,
                     "embedding": configuration.embedding_mode,
@@ -178,8 +182,11 @@ def _run(arguments: argparse.Namespace, parser: argparse.ArgumentParser) -> None
                     "estimated_retrieval_memory_budget_mb": configuration.retrieval_max_native_mb
                     * configuration.api_workers,
                 }
-            )
-        )
+        except Failure as error:
+            parser.exit(1, json.dumps({"code": error.code, "message": error.message}) + "\n")
+        except (ValueError, OSError):
+            parser.exit(1, "Provider configuration is invalid; values are omitted.\n")
+        print(json.dumps(output))
         return
     os.environ["EWS_NL2SQL_SETTINGS_FILE"] = str(arguments.settings.resolve())
     if arguments.env_file is not None:

@@ -1,7 +1,8 @@
 # V4.3 NL-to-SQL: verified system walkthrough
 
-Reviewed against the local source on **24 October 2026**, including the unpublished
-SurrealDB migration. This describes the implementation, not a deployed office system.
+Reviewed against the local source on **24 October 2026**, including the merged
+SurrealDB migration, offline embedding loader and conventional dependency installation.
+This describes the implementation, not a deployed office system.
 The user-supplied architecture remains broadly correct; the corrections below matter.
 The original numbered design is retained in [DESIGN_REFERENCE.md](DESIGN_REFERENCE.md).
 
@@ -12,7 +13,7 @@ SQL, independently validates the SQL and permits bounded read-only execution.
 
 | Supplied description | Verified current implementation |
 |---|---|
-| NetworkX join graph | Embedded SurrealDB provides runtime join traversal. Pure Python structural graphs remain for deterministic catalog/drift checks. NetworkX is removed from application dependencies. |
+| NetworkX join graph | Embedded SurrealDB provides runtime join traversal. Pure Python structural graphs remain for deterministic catalog/drift checks. NetworkX is only a transitive local-embedding dependency, not the runtime join adapter. |
 | One graph contains all business knowledge | The signed Pydantic catalog remains authoritative. SurrealDB stores a rebuildable projection of certified join topology and lineage; it cannot grant permissions or define a metric. |
 | Existing UI sends questions and displays results | The API supports the EWS JSON contract, but the canonical UI remains a frozen reference. It is not served or connected by this backend. |
 | Oracle is the running business database | SQLite holds fictional query data locally. Oracle discovery/query adapters exist but live office Oracle is not qualified. The office template selects Oracle, without connecting it here. |
@@ -20,7 +21,7 @@ SQL, independently validates the SQL and permits bounded read-only execution.
 | Automatic 15-minute schema monitoring | The interval defaults to 900 seconds. The office launcher explicitly enables and supervises the separate monitor after preparation; bare serve leaves it disabled. |
 | Monitor updates the running schema automatically | Scheduled refresh discovers, compares and stages. It never auto-approves or publishes. Signed review and a separate authenticated publication are required. |
 | BM25/vector search over schema | Rich schema records have lexical indexing. Optional vectors primarily rank metric documents; there is no claim that every table/column has a vector. |
-| Gemma is connected | Model adapters are implemented. Development defaults disabled; the office laptop template selects example private model/tokenizer/embedding endpoints. None is qualified as live. |
+| Gemma is connected | Model adapters are implemented. Development defaults disabled; the office template uses configured HTTP with a selected API, endpoint, authorization and token strategy. No office endpoint is qualified as live. |
 | Old flat Python modules | Ownership now follows domain, application, infrastructure, API, bootstrap, CLI and evaluation packages. Use the paths in section 12. |
 | 323 tests prove the current build | That number is historical. The migration/audit counts are historical. Use the 24 October architecture-remediation report for the current verification result; see section 13 for earlier evidence. |
 
@@ -161,9 +162,9 @@ Actual office-model accuracy and memory use still require measurement.
 | Exact match | Approved metric names and aliases; exact candidates can return before BM25 | Local synthetic tests |
 | FTS5/BM25 | Authorized metric ranking with expansion from the typed column/table/view index | Local synthetic tests |
 | Context builder | Candidate-scoped approved metrics/views/dimensions/relationships plus bounded rich records and the QueryPlan schema | Local tests; descriptions remain untrusted data |
-| Embeddings | Disabled, synthetic fake, explicitly registered installed local adapter, or approved private HTTP adapter | Real encoder not qualified |
+| Embeddings | Disabled, synthetic fake, built-in offline Sentence Transformers loader, registered custom adapter, or approved private HTTP adapter | Native CPU loader tested with synthetic weights; actual office model not qualified |
 | Vectors | Automatically generated embedded SurrealDB metric-vector projections, exact cosine and reciprocal-rank fusion | Real native synthetic tests; actual encoder accuracy/hardware capacity remain unqualified |
-| Model provider | Disabled, scripted, approved private HTTP, or explicitly authorized synthetic-only hosted HTTP | Real Gemma/private inference not qualified |
+| Model provider | Disabled, scripted, configured local/Azure/compatible HTTP, legacy private HTTP, or synthetic-only hosted HTTP | Synthetic wire/pipeline tests; actual office providers not qualified |
 
 These layers answer different questions: retrieval finds relevant approved concepts;
 the graph checks certified connectivity; the catalog/validator checks business meaning;
@@ -368,8 +369,9 @@ are historical evidence; inspect current code before treating them as implementa
 OPERATIONS.md for the command and signed first-publication flow. FAISS/factory adapters
 are removed; configured embeddings populate embedded SurrealDB vector projections. You do
 not build graph/vector projections by hand. Typed schema search grounds live questions.
-Restricted inference preflights the entire chat body with the selected runtime tokenizer
-and output reserve. The six-edge execution ceiling now matches planning. Explicit private
+Legacy restricted `private_http` inference preflights the entire chat body with its runtime
+tokenizer and output reserve; `configured_http` selects provider or runtime budgeting.
+The six-edge execution ceiling now matches planning. Explicit private
 environment files reach Oracle/trust settings as well as the application. None of this
 qualifies a real model, corporate Oracle or the target Mac.
 

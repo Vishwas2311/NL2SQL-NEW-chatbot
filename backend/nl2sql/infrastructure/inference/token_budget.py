@@ -27,6 +27,8 @@ def fit_payload(
 ) -> int | None:
     """At most two counts: remove optional evidence once, never truncate required contracts."""
     endpoint = settings.model_token_count_endpoint
+    if settings.model_mode == "configured_http" and settings.model_token_budget == "provider":
+        return None  # Server enforces context/output limits; byte and deadline guards remain local.
     if endpoint is None:
         if settings.data_classification != "synthetic":
             raise Failure(
@@ -49,7 +51,8 @@ def fit_payload(
             "Token counting requires the model origin.",
             "unavailable",
         )
-    messages = TypeAdapter(list[dict[str, str]]).validate_python(payload["messages"])
+    message_key = "input" if settings.model_api == "responses" else "messages"
+    messages = TypeAdapter(list[dict[str, str]]).validate_python(payload[message_key])
     for attempt in range(2):
         count = _count(endpoint, payload, client, headers, deadline, cancelled)
         if (
@@ -69,7 +72,7 @@ def fit_payload(
             metadata["truncated"] = True
             user["metadata"] = json.dumps(metadata, separators=(",", ":"), sort_keys=True)
             messages[1] = {"role": "user", "content": json.dumps(user)}
-            payload["messages"] = messages
+            payload[message_key] = messages
     raise Failure(
         "MODEL_CONTEXT_BUDGET", "Narrow the question to fit the model context window.", "invalid"
     )

@@ -63,6 +63,9 @@ shared rate/active-chat limits, failure recovery and session-retention maintenan
 For a complete Windows office environment, use [install_office.py](docs/OFFICE_INSTALLER.md).
 It installs the pinned core, Oracle/Redis clients, local CPU embedding runtime and quality
 tools, creates visible private connection fields and checks readiness before startup.
+For local or Azure planning, use the [LLM provider guide](docs/LLM_PROVIDERS.md).
+Select Chat Completions/Responses, authentication and the approved network policy in configuration;
+provider token budgeting does not require a separate token-count service.
 `python3.13 setup_env.py --office` installs the same packages with the office runtime preflight;
 the full installer additionally prepares private profiles and verifies startup readiness.
 For Windows, first use the [verified runtime candidate and diagnostic](docs/WINDOWS_RUNTIME.md);
