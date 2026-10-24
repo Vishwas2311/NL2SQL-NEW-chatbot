@@ -57,6 +57,8 @@ config/                   # Office/VM examples and optional local Redis Compose 
 metadata/synthetic/       # Fictional catalogs only
 scripts/                  # Quality/evaluation entry points and isolated Redis setup
 install_office.py          # Windows runtime/package/profile/readiness orchestration
+requirements.txt           # Complete tested pip install set with exact versions/platform markers
+pyproject.toml             # Project/build metadata, dependency declarations and tool configuration
 docs/                     # Current guides plus retained original numbered design
 reports/                  # Sanitized measurements and dated reviews
 UI/.../existing_ui_reference/  # Sole unchanged UI reference and original hashes
@@ -125,5 +127,6 @@ pending questions; `bootstrap/office_checks.py` owns offline SQLite/storage prer
 Transport owns HTTP status mapping; domain failures use application categories. Chat receives
 its independent validator explicitly; the execution port no longer exposes it. The architecture
 test resolves relative imports and verifies that detection with a synthetic violating import.
-The stock office embedding modes are disabled/private_http. Approved direct local Python
-providers remain integration seams for custom process composition, not automatic weight loaders.
+The stock office embedding modes are disabled/private_http/local. The built-in offline
+Sentence Transformers loader supports standard saved text models on Windows x64 CPU;
+custom registered providers remain integration seams for approved custom composition.

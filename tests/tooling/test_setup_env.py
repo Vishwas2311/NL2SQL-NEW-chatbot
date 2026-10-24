@@ -52,15 +52,9 @@ def test_setup_from_another_directory_preserves_settings(
             "-m",
             "pip",
             "install",
-            *[
-                item
-                for name in (
-                    ("requirements-oracle.lock", "requirements-redis.lock")
-                    if office
-                    else ("requirements-core.lock",)
-                )
-                for item in ("-r", str(root / name))
-            ],
+            "--only-binary=:all:",
+            "-r",
+            str(root / "requirements.txt"),
         ],
         [str(python), "-m", "pip", "install", "--no-deps", "-e", str(root)],
     ]

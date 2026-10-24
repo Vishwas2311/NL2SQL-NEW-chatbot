@@ -161,17 +161,6 @@ def install_packages(python: Path) -> Path:
         environment.rename(backup)
         print(f"Preserved previous environment: {backup}", flush=True)
     run([str(python), str(ROOT / "setup_env.py"), "--office"])
-    run(
-        [
-            str(executable),
-            "-m",
-            "pip",
-            "install",
-            "--only-binary=:all:",
-            "-r",
-            str(ROOT / "requirements-office-windows.lock"),
-        ]
-    )
     run([str(executable), "-m", "pip", "check"])
     return executable
 

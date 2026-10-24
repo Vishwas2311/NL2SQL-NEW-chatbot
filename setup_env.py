@@ -1,4 +1,4 @@
-"""Run `python setup_env.py` to create .venv, install core dependencies and prepare .env."""
+"""Run `python setup_env.py` to create .venv, install requirements.txt and prepare .env."""
 
 import argparse
 import os
@@ -26,19 +26,16 @@ def main(office: bool = False) -> None:
         venv.EnvBuilder(with_pip=True).create(environment)
         if office:
             subprocess.run([str(python), "-I", diagnostic], check=True)
-    print("2/3 Installing pinned core dependencies and the project", flush=True)
-    requirements = (
-        ["requirements-oracle.lock", "requirements-redis.lock"]
-        if office
-        else ["requirements-core.lock"]
-    )
+    print("2/3 Installing requirements.txt and the project", flush=True)
     subprocess.run(
         [
             str(python),
             "-m",
             "pip",
             "install",
-            *[value for name in requirements for value in ("-r", str(root / name))],
+            "--only-binary=:all:",
+            "-r",
+            str(root / "requirements.txt"),
         ],
         check=True,
     )
@@ -56,6 +53,6 @@ def main(office: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--office", action="store_true", help="Include the approved Oracle and Redis clients"
+        "--office", action="store_true", help="Require the patched office runtime before setup"
     )
     main(parser.parse_args().office)

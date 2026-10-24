@@ -1,7 +1,14 @@
 # Windows office installation
 
+The project uses the conventional pip layout: `pyproject.toml` declares project/build
+metadata and `requirements.txt` pins the complete tested installation set, including
+transitive packages. Install dependencies manually with `python -m pip install -r requirements.txt`
+or use the installer below. Separate custom requirements/lock files are no longer needed.
+Platform markers retain the existing non-Windows dependency set; local CPU embeddings
+remain qualified for Windows x64 with Python 3.13.
+
 `install_office.py` is the single entry point for Windows x64. It installs the complete
-supported Python environment from `requirements-office-windows.lock`: core services,
+supported Python environment from `requirements.txt`: core services,
 Oracle and Redis clients, CPU Sentence Transformers/PyTorch, and quality tools. It does
 not install Oracle or Redis servers, model weights, a planning-model server or corporate
 identity. Those resources must already be supplied and approved.
