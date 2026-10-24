@@ -196,18 +196,23 @@ class RuntimeFactory:
         try:
             if owner:
                 try:
-                    search = Retriever(
-                        catalog,
-                        principals,
-                        self.embedding[0],
-                        self.settings.retrieval_options,
-                    )
+                    with ExitStack() as cleanup:
+                        search = Retriever(
+                            catalog,
+                            principals,
+                            self.embedding[0],
+                            self.settings.retrieval_options,
+                        )
+                        cleanup.callback(search.close)
+                        if isinstance(self.embedding[0], ManagedEncoder):
+                            self.embedding[0].checkpoint(
+                                tuple(text for _, text in search_records(catalog))
+                            )
+                        reference.future.set_result(search)
+                        cleanup.pop_all()
                 except BaseException as error:
                     reference.future.set_exception(error)
                     raise
-                if isinstance(self.embedding[0], ManagedEncoder):
-                    self.embedding[0].checkpoint(tuple(text for _, text in search_records(catalog)))
-                reference.future.set_result(search)
             return reference.future.result(timeout=self.settings.request_timeout_seconds), release
         except FutureTimeout as error:
             release()
