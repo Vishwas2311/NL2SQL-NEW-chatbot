@@ -1,0 +1,222 @@
+{
+  "generated_at": "2026-10-24T06:52:51.160652+00:00",
+  "code_commit": "35e0742bad0b0630e8eace28e7647b47d57b053b",
+  "scope": "Local Windows x64 capability and synthetic application validation; no office deployment or company connections",
+  "provider": "Astral python-build-standalone",
+  "upstream_release": "20261021",
+  "archive": "cpython-3.13.17+20261021-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+  "download_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+  "sha256": "56cde3b1a1dcc36576753cb408ee0c3568d211baafa0eee40423adc147c480f2",
+  "archive_hash_verified": true,
+  "runtime": {
+    "python": "3.13.17",
+    "sqlite": "3.53.1",
+    "wal_patched": true,
+    "fts5": true,
+    "tls": "OpenSSL 3.5.9 29 Sep 2026",
+    "compatible": true
+  },
+  "actual_office_sqlite_fts5_preflight": "passed without overrides",
+  "pip_check": "No broken requirements found",
+  "validation": {
+    "ruff": "passed",
+    "formatting": "passed",
+    "pylint": "10.00/10",
+    "strict_pyright": "0 errors, 0 warnings, 0 information messages",
+    "full_pytest": {
+      "passed": 488,
+      "skipped": 9,
+      "warnings": 1,
+      "coverage_percent": 90,
+      "python": "3.13.17",
+      "sqlite": "3.53.1"
+    },
+    "additional_missing_tls_test": "passed separately after full-suite collection",
+    "pre_commit_all_files_final_rerun": "all three hooks passed",
+    "initial_checker_exit": 1,
+    "initial_checker_exit_explanation": "All product tests passed. Pre-commit flagged the index/diff changing while the Pyright hook ran because documentation/tests were staged during that hook. Pyright reported zero errors. The unchanged code was then verified with all pre-commit hooks passing on a stationary tree.",
+    "hook_interpreter_note": "The existing project hook wrapper resolves the original project .venv for static hooks. Full pytest and the explicit quality modules ran under the isolated candidate Python. No original environment was replaced."
+  },
+  "matched_service_load": {
+    "stock": {
+      "scope": "synthetic application service, disabled model, four SQLite query connections",
+      "network_load_measured": false,
+      "python_tracing_enabled": false,
+      "real_model_or_oracle_qualified": false,
+      "levels": [
+        {
+          "simultaneous_callers": 1,
+          "requests": 3,
+          "correct_results": 3,
+          "errors": 0,
+          "p50_ms": 229.00429999572225,
+          "p95_ms": 229.00429999572225,
+          "pool_queue_p95_ms": 0.031200004741549492,
+          "worker_queue_max_ms": 0.9652000007918105,
+          "peak_traced_python_bytes": null,
+          "throughput_requests_per_second": 4.263079768141145,
+          "stage_p95_ms_nonadditive": {
+            "compile_ms": 64.85190000967123,
+            "database_ms": 3.028399994946085,
+            "graph_ms": 195.3234000102384,
+            "plan_ms": 99.54629999992903,
+            "pool_queue_ms": 0.031200004741549492,
+            "request_ms": 228.95750000316184,
+            "session_append_ms": 4.232200008118525,
+            "session_create_ms": 1.9151000014971942,
+            "session_queue_ms": 0.1339000154985115,
+            "session_state_ms": 0.20470000163186342,
+            "validate_ms": 54.81610000424553
+          }
+        },
+        {
+          "simultaneous_callers": 8,
+          "requests": 24,
+          "correct_results": 24,
+          "errors": 0,
+          "p50_ms": 1779.0505999946618,
+          "p95_ms": 2554.0992000023834,
+          "pool_queue_p95_ms": 0.030199997127056122,
+          "worker_queue_max_ms": 0.4729000065708533,
+          "peak_traced_python_bytes": null,
+          "throughput_requests_per_second": 4.26121201227463,
+          "stage_p95_ms_nonadditive": {
+            "compile_ms": 281.60790000401903,
+            "database_ms": 217.956000007689,
+            "graph_ms": 1229.310999988229,
+            "plan_ms": 829.0045000030659,
+            "pool_queue_ms": 0.030199997127056122,
+            "request_ms": 2554.0489999984857,
+            "session_append_ms": 852.1783000032883,
+            "session_create_ms": 736.7386999976588,
+            "session_queue_ms": 1437.4800999939907,
+            "session_state_ms": 95.43120001035277,
+            "validate_ms": 376.1631999950623
+          }
+        },
+        {
+          "simultaneous_callers": 20,
+          "requests": 60,
+          "correct_results": 60,
+          "errors": 0,
+          "p50_ms": 4514.583350006433,
+          "p95_ms": 6448.754800003371,
+          "pool_queue_p95_ms": 0.03189999551977962,
+          "worker_queue_max_ms": 0.5081999988760799,
+          "peak_traced_python_bytes": null,
+          "throughput_requests_per_second": 4.340339221960165,
+          "stage_p95_ms_nonadditive": {
+            "compile_ms": 1032.655299990438,
+            "database_ms": 292.48260000895243,
+            "graph_ms": 3410.518599994248,
+            "plan_ms": 2236.9324000028428,
+            "pool_queue_ms": 0.03189999551977962,
+            "request_ms": 6448.725399997784,
+            "session_append_ms": 2738.0306999984896,
+            "session_create_ms": 2476.720499995281,
+            "session_queue_ms": 4142.301999978372,
+            "session_state_ms": 119.82400000852067,
+            "validate_ms": 964.0440000075614
+          }
+        }
+      ]
+    },
+    "candidate": {
+      "scope": "synthetic application service, disabled model, four SQLite query connections",
+      "network_load_measured": false,
+      "python_tracing_enabled": false,
+      "real_model_or_oracle_qualified": false,
+      "levels": [
+        {
+          "simultaneous_callers": 1,
+          "requests": 3,
+          "correct_results": 3,
+          "errors": 0,
+          "p50_ms": 278.02569999767,
+          "p95_ms": 278.02569999767,
+          "pool_queue_p95_ms": 0.03480000304989517,
+          "worker_queue_max_ms": 0.7046999962767586,
+          "peak_traced_python_bytes": null,
+          "throughput_requests_per_second": 3.4852944969640665,
+          "stage_p95_ms_nonadditive": {
+            "compile_ms": 89.26650001376402,
+            "database_ms": 3.562199999578297,
+            "graph_ms": 242.31829999189358,
+            "plan_ms": 115.64439999347087,
+            "pool_queue_ms": 0.03480000304989517,
+            "request_ms": 277.90590000222437,
+            "session_append_ms": 3.92249999276828,
+            "session_create_ms": 2.1819999965373427,
+            "session_queue_ms": 0.16589998267591,
+            "session_state_ms": 0.18709999858401716,
+            "validate_ms": 69.28440000046976
+          }
+        },
+        {
+          "simultaneous_callers": 8,
+          "requests": 24,
+          "correct_results": 24,
+          "errors": 0,
+          "p50_ms": 1426.197750006395,
+          "p95_ms": 2982.209800000419,
+          "pool_queue_p95_ms": 0.031100003980100155,
+          "worker_queue_max_ms": 0.5643000040436164,
+          "peak_traced_python_bytes": null,
+          "throughput_requests_per_second": 4.338387735809913,
+          "stage_p95_ms_nonadditive": {
+            "compile_ms": 361.05389999283943,
+            "database_ms": 215.3832999902079,
+            "graph_ms": 1879.88000002224,
+            "plan_ms": 900.8269000041764,
+            "pool_queue_ms": 0.031100003980100155,
+            "request_ms": 2982.178100006422,
+            "session_append_ms": 599.8189999954775,
+            "session_create_ms": 687.1764999959851,
+            "session_queue_ms": 1091.7451000132132,
+            "session_state_ms": 101.88819999166299,
+            "validate_ms": 243.89729999529663
+          }
+        },
+        {
+          "simultaneous_callers": 20,
+          "requests": 60,
+          "correct_results": 60,
+          "errors": 0,
+          "p50_ms": 4324.9835499955225,
+          "p95_ms": 6695.344899999327,
+          "pool_queue_p95_ms": 0.03530000685714185,
+          "worker_queue_max_ms": 0.5284999933792278,
+          "peak_traced_python_bytes": null,
+          "throughput_requests_per_second": 4.353586418099633,
+          "stage_p95_ms_nonadditive": {
+            "compile_ms": 1005.3715999965789,
+            "database_ms": 293.8216000038665,
+            "graph_ms": 3512.754799987306,
+            "plan_ms": 2277.0809999929043,
+            "pool_queue_ms": 0.03530000685714185,
+            "request_ms": 6695.314299999154,
+            "session_append_ms": 2359.2376000015065,
+            "session_create_ms": 2299.793600002886,
+            "session_queue_ms": 3972.5242999993498,
+            "session_state_ms": 116.58560000068974,
+            "validate_ms": 1409.442799995304
+          }
+        }
+      ]
+    },
+    "limitations": [
+      "Same host, sequential samples, one synthetic principal, disabled inference. No real Oracle, identity or SLM measurement.",
+      "Direct service calls bypass HTTP admission; the existing HTTP contract suite covers twenty distinct identities and bounded admission.",
+      "Observed timings vary with host load. This is not a production throughput or memory qualification."
+    ]
+  },
+  "company_approval_verified": false,
+  "office_laptop_execution_verified": false,
+  "original_system_python_and_project_venv_replaced": false,
+  "restricted_data_or_dotenv_modified": false,
+  "remaining": [
+    "Company approval of the distribution/hash or an equivalent approved runtime.",
+    "Verify the exact extracted runtime and fresh .venv on the office laptop before setup.",
+    "Office storage, identity, Oracle, SLM/encoder and real Redis qualification remain separate."
+  ]
+}
