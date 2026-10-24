@@ -47,7 +47,7 @@ once if necessary and rejects a request that still cannot fit. Byte limits remai
 additional bound. Synthetic mock HTTP tests without a counter do not qualify a real model.
 See the [official server contract](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md#post-v1chatcompletionsinput_tokens).
 
-With an approved embedding endpoint or registered installed local encoder, the application
+With an approved embedding endpoint or the built-in installed local encoder, the application
 automatically builds metadata vectors and embedded SurrealDB exact-cosine projections. FAISS
 and its NumPy/native adapters have been removed. No extension, model download or vector
 server is installed. Vectors use authorized metric partitions, never business rows. Native
@@ -310,7 +310,7 @@ the `office` supervisor. `register_local_embedding(model_id, factory)` remains a
 trusted custom composition with an explicit identity/version. Custom registrations are not
 inherited by spawned workers. No weights or model server are downloaded automatically.
 See [the Windows office installer](OFFICE_INSTALLER.md) for the complete optional dependency
-lock, one-file setup, visible connection fields and remaining office qualification.
+pins in requirements.txt, one-file setup, visible connection fields and remaining office qualification.
 
 Use the same model ID/version/dimension/normalization at staging, publication and serving.
 Changed embedding or retrieval configuration requires staging/reviewing a compatible candidate.
@@ -409,8 +409,9 @@ Reasons are metric/period/dimension/filter/entity. The application verifies sugg
 against authorized retrieved candidates and supplies the question wording; a clarification executes
 no SQL. Existing direct QueryPlan responses remain readable by the adapter. Default `json_schema`
 mode carries the schema in response_format rather than repeating it in metadata. Other output
-modes include the schema in the bounded context. Runtime token counting and output reserve remain
-mandatory for restricted HTTP inference.
+modes include the schema in the bounded context. Legacy restricted `private_http` and the
+`runtime` budget strategy require runtime counting and output reserve. `configured_http`
+can instead select provider budgeting as described in [LLM_PROVIDERS.md](LLM_PROVIDERS.md).
 
 An owned last plan and one pending bounded question may enter model context only under the current
 catalog and scope identity. Changed grants clear model-visible context; supported deterministic

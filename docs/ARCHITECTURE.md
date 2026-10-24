@@ -14,7 +14,7 @@ scope retrieval, typed planning, deterministic SQL compilation, independent
 validation, and read-only execution. Browser `user_id`, metadata text, and model
 output cannot grant permissions. Raw SQL fallback remains disabled.
 
-Windows office setup is orchestrated by `install_office.py`; the complete CPU package lock
+Windows office setup is orchestrated by `install_office.py`; the complete CPU package pins
 and readiness workflow are documented in [OFFICE_INSTALLER.md](OFFICE_INSTALLER.md).
 Built-in offline Sentence Transformers loading now reaches preparation, monitor and API
 processes without custom registration. Only certified authorized metadata is embedded;
@@ -84,8 +84,8 @@ timeouts/pools. No heartbeat scheduler or background job system is introduced.
 Readiness verifies authentication, scripting and required sorted-set commands in
 an isolated, expiring probe key, rather than relying only on PING. The check-redis
 CLI uses the same adapter without opening Oracle, inference or application databases.
-The redis-py optional dependency is pinned in requirements.txt and the
-development lock. The office VM Redis service is not installed or deployed here.
+The redis-py dependency is pinned in requirements.txt alongside the development tools.
+The office VM Redis service is not installed or deployed here.
 An optional loopback-only Docker Compose service and generated least-privilege
 application/test ACLs support real local synthetic qualification. Generated .env
 and test credentials are ignored; they are not office secrets or deployment files.

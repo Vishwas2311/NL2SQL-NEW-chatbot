@@ -203,10 +203,10 @@ The active version cannot be retired. Rollback rejects incompatible sources, rev
 ## Authorized Oracle bootstrap (live qualification blocked)
 
 The commented Oracle sections of `.env.example` enumerate the query and discovery
-process-environment variables, including credentials, approval flags and DBA context
-routines. Keep them commented in an application dotenv: `--env-file` does not load
-Oracle account settings. Provision them through the approved process launcher or
-secret manager. A template change does not authorize or establish live connectivity.
+settings, including credentials, approval flags and DBA context routines. Supply them
+through the explicitly selected private `--env-file`, approved process launcher or
+secret manager; process variables take precedence. Keep secrets outside Git. A template
+change does not authorize or establish live connectivity.
 
 Ask the DBA/security owners for dictionary visibility on explicit owners, network approval and a
 read-only discovery identity. Obtain business/security certification separately. Source profile,
@@ -409,7 +409,7 @@ is not a native SQLite patch. Official advisory: https://sqlite.org/wal.html#wal
 6. Run the normal first-time certification workflow, then office preparation/startup. Graph and
    optional vector resources are derived automatically. The stock launcher supports disabled,
    private_http and built-in local Sentence Transformers embeddings. See
-   [the one-file Windows installer](OFFICE_INSTALLER.md) for the local model path and CPU lock.
+   [the one-file Windows installer](OFFICE_INSTALLER.md) for the local model path and CPU pins.
 7. Before enabling users, qualify the actual Oracle/model/identity environment, financial results,
    token counting, memory and 20-user HTTP workload. Increase active chats only from measured evidence.
 
@@ -472,8 +472,8 @@ lease test, before qualifying that profile. Memory admission is single-process o
 Real model and hardware qualification are pending: the endpoint/model and upgraded machine
 were not provided as a tested integration. On the actual approved runtime:
 
-1. Verify exact model/revision, quantization, context per request/parallel slot, full-request
-   token-counter behavior and output reserve. Start with one inference slot.
+1. Verify exact model/revision, quantization, context per request/parallel slot, and the selected
+   provider budget or runtime token-counter/output-reserve behavior. Start with one inference slot.
 2. Build an approved, held-out set of at least 50 representative questions with independently
    reviewed expected metrics, dates, filters, grouping and expected clarification/denial.
    Include supported multi-fact views and follow-ups. Keep company questions/results private.

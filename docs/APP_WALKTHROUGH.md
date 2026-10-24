@@ -369,8 +369,9 @@ are historical evidence; inspect current code before treating them as implementa
 OPERATIONS.md for the command and signed first-publication flow. FAISS/factory adapters
 are removed; configured embeddings populate embedded SurrealDB vector projections. You do
 not build graph/vector projections by hand. Typed schema search grounds live questions.
-Restricted inference preflights the entire chat body with the selected runtime tokenizer
-and output reserve. The six-edge execution ceiling now matches planning. Explicit private
+Legacy restricted `private_http` inference preflights the entire chat body with its runtime
+tokenizer and output reserve; `configured_http` selects provider or runtime budgeting.
+The six-edge execution ceiling now matches planning. Explicit private
 environment files reach Oracle/trust settings as well as the application. None of this
 qualifies a real model, corporate Oracle or the target Mac.
 

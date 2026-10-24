@@ -36,7 +36,7 @@ select `--download-runtime`. The pinned archive's SHA256 is checked before bound
 extraction into your local application-data folder. The installer does not bypass
 application control, network restrictions or approval requirements. Python package
 installation uses the machine's approved pip/proxy configuration; the CPU wheel source
-in the lock must be reachable or mirrored by IT.
+in requirements.txt must be reachable or mirrored by IT.
 
 The installer creates private files once at:
 
