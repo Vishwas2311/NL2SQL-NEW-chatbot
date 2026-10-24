@@ -43,8 +43,6 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="NL2SQL_", env_file=None, extra="forbid")
     data_dir: Path = Path(".local")
-    graph_native_dir: Path | None = None
-    graph_buffer_mb: int = Field(default=64, ge=32, le=1024)
     catalog_path: Path = Path("metadata/synthetic/catalog.json")
     catalog_digest: str = ""
     metadata_root: Path | None = None

@@ -26,7 +26,8 @@ backend/nl2sql/
   infrastructure/
     storage.py            # Ordered SQLite upgrades and sanitized storage failures
     http_policy.py        # Shared private endpoint/client policy
-    graph.py              # Immutable embedded LadybugDB projections and native lifecycle
+    embedded.py           # Typed process-local SurrealDB connection/query boundary
+    graph.py              # Immutable embedded SurrealDB projections and native lifecycle
     auth.py               # Local token/JWT identity adapter
     sessions.py           # Transactional SQLite session adapter
     rate_limit.py         # Memory/Redis rate quotas, active-chat leases and capability probe
@@ -36,6 +37,7 @@ backend/nl2sql/
     inference/            # Disabled, scripted and HTTP model providers
   api/                    # FastAPI transport, public schemas and middleware
   bootstrap/              # Composition roots, request leases and spawned-worker factory
+    sqlite_runtime.py     # Standard-library-only Python/SQLite/FTS5/TLS diagnostic
   cli/                    # Serve, configuration and metadata administration commands
   evaluation/             # Synthetic data and reproducible evaluation harnesses
   settings.py             # Validated application/environment configuration
@@ -45,7 +47,7 @@ backend/nl2sql/
 tests/
   unit/                   # Isolated catalog, retrieval and quota behavior
   contracts/              # API shapes and injected provider/Oracle contracts
-  integration/            # Real local SQLite/Ladybug/workflows; explicit local Redis suite
+  integration/            # Real local SQLite/SurrealDB/workflows; explicit local Redis suite
   security/               # Permission, compiler mutation and capability denials
   evaluation/             # Evaluation harness checks
   tooling/                # Import boundaries, worker/setup, export and UI preservation
@@ -107,12 +109,13 @@ preserves current revocation and publication controls while enabling shared
 admission. See CONFIGURATION.md and OPERATIONS.md for the supported launcher,
 Redis prerequisites, failure behavior and qualification limits.
 
-`typings/ladybug/__init__.pyi` narrows the native API used by the adapter for strict
-static analysis. No native driver is imported from application or domain code.
+`infrastructure/embedded.py` owns the narrow typed boundary to the pinned SurrealDB
+SDK and opens only process-local memory projections. No native driver is imported by
+application/domain code. `infrastructure/graph.py` owns canonical snapshots and traversal.
 
 `cli/office.py` owns the foreground supervisor; `cli/metadata.py` owns automatic preparation
 through signed lifecycle operations. `infrastructure/inference/token_budget.py` preflights
-runtime tokens. `infrastructure/retrieval/vector_index.py` owns embedded Ladybug exact-cosine
+runtime tokens. `infrastructure/retrieval/vector_index.py` owns embedded SurrealDB exact-cosine
 projections, replacing the removed FAISS adapter and vector-factory selection path.
 
 

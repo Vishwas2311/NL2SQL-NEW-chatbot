@@ -302,7 +302,6 @@ def _run(options: MetadataOptions, root: Path, temporary: bool) -> dict[str, obj
                 encoder,
                 encoder.identity if encoder else None,
                 retrieval_options=settings.retrieval_options if settings else RetrievalOptions(),
-                native_dir=settings.graph_native_dir if settings else None,
             ),
             runtime_check=factory.check if factory else None,
         )

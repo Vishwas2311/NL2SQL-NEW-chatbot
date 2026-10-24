@@ -21,7 +21,8 @@ from nl2sql.domain.fingerprints import catalog_hash, digest, grant_digest
 from nl2sql.domain.metadata import BundleSpec
 from nl2sql.domain.models import Answer, Catalog, CompiledQuery, Failure, Principal
 from nl2sql.infrastructure.databases.sqlite import SQLiteDatabase
-from nl2sql.infrastructure.graph import LadybugGraph
+from nl2sql.infrastructure.graph import SurrealGraph
+from nl2sql.infrastructure.metadata.builder import BundleBuilder
 from nl2sql.infrastructure.retrieval.embeddings import ManagedEncoder
 from nl2sql.infrastructure.retrieval.lexical import Retriever, search_records
 from nl2sql.infrastructure.sessions import SessionStore
@@ -102,16 +103,19 @@ class RuntimeFactory:
         if (
             catalog_hash(catalog) != spec.artifacts.catalog_digest
             or spec.artifacts.encoder_version != self.embedding[1]
+            or spec.artifacts.search_digest
+            != BundleBuilder(
+                encoder_version=self.embedding[1],
+                retrieval_options=self.settings.retrieval_options,
+            ).search_fingerprint(catalog, spec.principals)
         ):
             raise Failure(
                 "METADATA_INTEGRITY", "Runtime metadata versions disagree.", "unavailable"
             )
         with ExitStack() as cleanup:
-            graph = LadybugGraph.build(
-                self.settings.data_dir / "graphs" / (catalog_hash(catalog) + ".lbdb"),
+            graph = SurrealGraph.build(
+                self.settings.data_dir / "graphs" / (catalog_hash(catalog) + ".surreal.json"),
                 catalog,
-                self.settings.graph_buffer_mb,
-                self.settings.graph_native_dir,
             )
             cleanup.callback(graph.close)
             validator = SQLValidator(catalog, secrets.token_bytes(32), spec.id, guard, graph)
@@ -192,19 +196,23 @@ class RuntimeFactory:
         try:
             if owner:
                 try:
-                    search = Retriever(
-                        catalog,
-                        principals,
-                        self.embedding[0],
-                        self.settings.retrieval_options,
-                        self.settings.graph_native_dir,
-                    )
+                    with ExitStack() as cleanup:
+                        search = Retriever(
+                            catalog,
+                            principals,
+                            self.embedding[0],
+                            self.settings.retrieval_options,
+                        )
+                        cleanup.callback(search.close)
+                        if isinstance(self.embedding[0], ManagedEncoder):
+                            self.embedding[0].checkpoint(
+                                tuple(text for _, text in search_records(catalog))
+                            )
+                        reference.future.set_result(search)
+                        cleanup.pop_all()
                 except BaseException as error:
                     reference.future.set_exception(error)
                     raise
-                if isinstance(self.embedding[0], ManagedEncoder):
-                    self.embedding[0].checkpoint(tuple(text for _, text in search_records(catalog)))
-                reference.future.set_result(search)
             return reference.future.result(timeout=self.settings.request_timeout_seconds), release
         except FutureTimeout as error:
             release()

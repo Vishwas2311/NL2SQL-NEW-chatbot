@@ -1,14 +1,11 @@
-"""Embedded Ladybug vector projection; no extensions, downloads or vector server."""
+"""Embedded Surreal vector projection; no extensions, downloads or vector server."""
 
 import math
-import os
 from contextlib import ExitStack
-from pathlib import Path
 from threading import RLock
 
-import ladybug
-
 from nl2sql.domain.models import Failure
+from nl2sql.infrastructure.embedded import open_projection, records
 
 VectorEntries = tuple[tuple[str, tuple[float, ...]], ...]
 
@@ -23,10 +20,10 @@ def normalized(vector: tuple[float, ...]) -> tuple[float, ...]:
     return tuple(value / magnitude for value in vector)
 
 
-class LadybugVectorIndex:
+class SurrealVectorIndex:
     """Exact cosine search over bounded metadata, automatically rebuilt per snapshot."""
 
-    def __init__(self, entries: VectorEntries, native_dir: Path | None = None) -> None:
+    def __init__(self, entries: VectorEntries) -> None:
         if not entries or len(entries) > 10_000 or len({key for key, _ in entries}) != len(entries):
             raise ValueError("Invalid vector partition")
         vectors = tuple(normalized(vector) for _, vector in entries)
@@ -37,40 +34,20 @@ class LadybugVectorIndex:
         self._lock = RLock()
         self._closed = False
         with ExitStack() as cleanup:
-            if os.name == "nt" and native_dir is not None:
-                cleanup.callback(os.add_dll_directory(str(native_dir)).close)
-            database = ladybug.Database(
-                ":memory:", buffer_pool_size=32 * 1024 * 1024, max_num_threads=1
-            )
-            cleanup.callback(database.close)
-            self._connection = ladybug.Connection(database)
+            self._connection = open_projection()
             cleanup.callback(self._connection.close)
-            self._execute(
-                "CREATE NODE TABLE MetadataVector(id STRING PRIMARY KEY, "
-                f"embedding DOUBLE[{self.dimension}])"
-            )
             for (key, _), vector in zip(entries, vectors, strict=True):
                 self._execute(
-                    "CREATE (:MetadataVector {id:$id, "
-                    f"embedding:CAST($vector AS DOUBLE[{self.dimension}])}})",
-                    {"id": key, "vector": list(vector)},
+                    "CREATE metric CONTENT $record",
+                    {"record": {"key": key, "embedding": list(vector)}},
                 )
             self._cleanup = cleanup.pop_all()
 
-    def _execute(self, query: str, values: dict[str, object] | None = None) -> list[list[object]]:
+    def _execute(
+        self, query: str, values: dict[str, object] | None = None
+    ) -> list[dict[str, object]]:
         try:
-            result = self._connection.execute(query, values)
-            if isinstance(result, list):
-                for item in result:
-                    item.close()
-                raise ValueError("Only one vector statement is allowed")
-            try:
-                rows: list[list[object]] = []
-                while result.has_next():
-                    rows.append(result.get_next())
-                return rows
-            finally:
-                result.close()
+            return records(self._connection, query, values)
         except Exception as error:
             raise Failure(
                 "VECTOR_UNAVAILABLE",
@@ -79,7 +56,7 @@ class LadybugVectorIndex:
             ) from error
 
     def search(self, vector: tuple[float, ...], allowed: set[str]) -> tuple[tuple[str, float], ...]:
-        """The Cypher predicate scopes candidates before the result limit."""
+        """The SurrealQL predicate scopes candidates before the result limit."""
         if len(vector) != self.dimension:
             raise ValueError("Query/index dimension mismatch")
         query = normalized(vector)
@@ -89,16 +66,14 @@ class LadybugVectorIndex:
                     "VECTOR_UNAVAILABLE", "The metadata vector projection is closed.", "unavailable"
                 )
             rows = self._execute(
-                "MATCH (v:MetadataVector) WHERE v.id IN $allowed "
-                "RETURN v.id,array_cosine_similarity(v.embedding,"
-                f"CAST($query AS DOUBLE[{self.dimension}])) AS score "
-                "ORDER BY score DESC,v.id LIMIT $limit",
+                "SELECT key,vector::similarity::cosine(embedding,$query) AS score "
+                "FROM metric WHERE key IN $allowed ORDER BY score DESC,key ASC LIMIT $limit",
                 {"allowed": sorted(allowed & self.keys), "query": list(query), "limit": 100},
             )
             return tuple(
-                (str(key), float(str(score)))
-                for key, score in rows
-                if math.isfinite(float(str(score))) and float(str(score)) > 0
+                (str(row["key"]), float(str(row["score"])))
+                for row in rows
+                if math.isfinite(float(str(row["score"]))) and float(str(row["score"])) > 0
             )
 
     def close(self) -> None:

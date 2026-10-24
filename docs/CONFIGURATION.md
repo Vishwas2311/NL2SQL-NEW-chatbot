@@ -7,7 +7,7 @@ the pinned application, Oracle and Redis clients. Office setup checks the linked
 library for the WAL-reset fix; Python 3.13 alone is insufficient. Use SQLite 3.51.3+
 or the documented 3.50.7/3.44.6 maintenance backport. A pip dependency update does not
 replace the standard library SQLite engine. Recreate the environment on macOS;
-do not copy the Windows `.venv`. Native Ladybug loading must be checked on the actual Mac.
+do not copy the Windows `.venv`. Native SurrealDB loading must be checked on the actual Mac.
 
 Copy `config/office.example.json` to protected settings and change its storage paths to
 approved absolute local paths outside OneDrive/iCloud/network shares. Its loopback model
@@ -36,12 +36,13 @@ additional bound. Synthetic mock HTTP tests without a counter do not qualify a r
 See the [official server contract](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md#post-v1chatcompletionsinput_tokens).
 
 With an approved embedding endpoint or registered installed local encoder, the application
-automatically builds metadata vectors and embedded Ladybug exact-cosine projections. FAISS
+automatically builds metadata vectors and embedded SurrealDB exact-cosine projections. FAISS
 and its NumPy/native adapters have been removed. No extension, model download or vector
 server is installed. Vectors use authorized metric partitions, never business rows. Native
 vector projections are rebuilt in memory at activation; the optional protected encoder cache
-persists vectors across restarts and bundle digests still verify compatibility. Each live
-partition has a 32 MiB native buffer, multiplied by grant partitions and API workers.
+persists vectors across restarts and bundle digests still verify compatibility. Admission estimates 32 MiB per live
+vector partition; this is not a native allocator limit. Measure RSS across grant partitions,
+retained bundles and API workers.
 `index_storage_path` defaults null in the office example. If approved restart caching is
 needed, select a marked private path. Metadata checkpoints run during preparation, outside
 the encoding lock; ordinary question cache misses never rewrite the disk snapshot.
@@ -52,7 +53,7 @@ The launcher supervises monitoring outside API workers. Bare `serve` never start
 
 
 See [System walkthrough](APP_WALKTHROUGH.md) for how the selected query backend, embedded
-LadybugDB graph, Redis admission and optional model/embedding adapters work together.
+SurrealDB graph, Redis admission and optional model/embedding adapters work together.
 Selecting a provider does not establish live office qualification.
 
 This is a synthetic Windows/Python 3.13 development build. Company Oracle, corporate identity,
@@ -359,15 +360,24 @@ performance evidence before release. No deployment, public publication or remote
 
 ## Embedded graph configuration
 
-LadybugDB 0.21.2 requires no graph endpoint, API key or server process.
-`NL2SQL_GRAPH_BUFFER_MB` sets the native buffer pool per live graph handle: default
-64 MiB, allowed 32?1024 MiB. Native query threads are fixed to one. This setting
-is not a process RSS cap; workers and retained bundles multiply memory costs.
-`NL2SQL_GRAPH_NATIVE_DIR` optionally names an approved Windows directory containing
-required native dependencies (including OpenSSL 3 for the current wheel). Never
-use an untrusted or upload-writable DLL directory. Example environment files document
-both settings. Files reside under the configured `data_dir/graphs`, keyed by catalog digest.
-See OPERATIONS.md for recovery and ARCHITECTURE.md for ownership and versioning.
+For the verified portable Windows Python/SQLite candidate and early setup checks, see
+[Windows runtime qualification](WINDOWS_RUNTIME.md). Company approval remains separate.
+
+SurrealDB Python `2.0.0` includes the embedded engine and requires no graph endpoint,
+API key, separate server or application OpenSSL directory hook. Install pinned requirements
+into a fresh platform-specific virtual environment. No model weights are installed.
+
+`data_dir/graphs/<catalog-digest>.surreal.json` is an immutable rebuild snapshot;
+each worker/retained bundle owns an in-memory SurrealDB projection. Shared SurrealKV is
+intentionally not used because it locks a persistent directory to one process.
+Remove old `graph_buffer_mb`/`graph_native_dir` JSON fields and
+`NL2SQL_GRAPH_BUFFER_MB`/`NL2SQL_GRAPH_NATIVE_DIR` environment entries. The JSON loader
+rejects obsolete fields rather than silently pretending to apply native limits.
+`retrieval_max_native_mb` is retained for configuration compatibility as a conservative
+32 MiB-per-nonempty-vector-partition admission estimate, not a hard memory cap. Component,
+dimension, record and text limits also apply. Measure total RSS with actual worker counts.
+See [migration instructions](SURREALDB_MIGRATION.md), OPERATIONS.md and ARCHITECTURE.md.
+
 
 
 ## Planning decisions, storage upgrades and office admission
@@ -400,10 +410,11 @@ Application deadlines begin before authentication, bound reload-lock waits, and 
 by nested chat calls. Late resource candidates are closed rather than activated. A native provider
 must still implement its own interruption; these controls do not forcibly kill arbitrary Python code.
 
-FTS preflight counts metric and schema document text across unique grant partitions. Native vector
-buffer ceilings are checked before encoding/allocation; vector components are bounded before native
-index allocation. These are allocation/input budgets, not process RSS caps. Workers and overlapping
-bundles multiply costs; measure the actual SLM and target machine before raising limits.
+FTS preflight counts metric and schema document text across unique grant partitions. Vector
+partition memory estimates are checked before encoding/allocation; vector components are bounded
+before native index allocation. These are admission/input budgets, not native allocator or process
+RSS caps. Workers and overlapping bundles multiply costs; measure the actual SLM and target machine
+before raising limits.
 
 RuntimeFactory captures Oracle query configuration once during composition. Discovery and query
 accounts remain separate. Office preflight rejects known unpatched SQLite, relative/repository

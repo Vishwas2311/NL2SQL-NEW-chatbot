@@ -190,7 +190,7 @@ approved visibility. Unknown targets remain unverified.
 
 Reconciliation matches semantic relationships to exact physical objects and complete key mappings.
 Target unique grain, compatible types, tenant partition pairs and source uniqueness for one-to-one
-edges must hold. Bootstrap projects certified catalog relationships into LadybugDB after reconciliation.
+edges must hold. Bootstrap projects certified catalog relationships into SurrealDB after reconciliation.
 The catalog and JoinGraph policy evidence retain full key pairs, cardinality, temporal rules,
 review references and version identity. Native links retain topology/relationship IDs and lineage;
 the graph projection does not become a separate business or access authority.
@@ -375,7 +375,7 @@ compatibility and unchanged policy/grants. See [Operations](OPERATIONS.md) for c
 
 ### Index and graph report
 
-Default: exact aliases, scope-partitioned SQLite FTS5/BM25 and LadybugDB. Search documents derive
+Default: exact aliases, scope-partitioned SQLite FTS5/BM25 and SurrealDB. Search documents derive
 from certified labels/aliases/definitions/domain, approved table/column descriptions and view IDs.
 Only metric-granted metadata enters each partition. Customer rows are never embedded.
 
@@ -384,17 +384,17 @@ memory checks. Hybrid lexical/cosine rank fusion falls back to lexical after saf
 Catalog, source/domain, metric IDs, grant partition and backend accompany vector entries.
 
 FAISS/NumPy bindings and the unused vector-factory selection path have been removed.
-A configured encoder automatically creates an embedded Ladybug exact-cosine projection
-per authorized metric partition. Fixed-size DOUBLE arrays, finite nonzero normalization,
-authorization predicates before limiting and serialized native cleanup are exercised with
-real local Ladybug. No extension, HNSW dependency or vector server is installed. The
-projection is rebuilt in memory at activation; an optional marked private encoder cache
-retains compatible vectors. Per-partition native buffers multiply by API workers.
+A configured encoder automatically creates an embedded SurrealDB exact-cosine projection
+per authorized metric partition. Finite nonzero vectors, matching dimensions, authorization
+predicates before limiting and serialized native cleanup are exercised with the real engine.
+No HNSW index, extension or vector server is required. Projections are rebuilt in memory at
+activation; an optional marked private encoder cache retains compatible vectors. Each worker
+and retained bundle owns its resources, so memory multiplies with those counts.
 
 Qualification still requires the same versioned encoder and corpus in staging/runtime,
 paired workflow evaluation, result/rejection/latency/memory comparisons and signed review.
 No command downloads a model. Actual encoder semantic accuracy remains unqualified.
-Official reference: [Ladybug array cosine similarity](https://docs.ladybugdb.com/cypher/expressions/array-functions/).
+Official reference: [SurrealDB vector functions](https://surrealdb.com/docs/surrealql/functions/database/vector).
 Local measurements: reports/benchmark.json, reports/retrieval.json, reports/schema-evolution.json.
 Scripted/toy evidence is explicitly distinct from real model accuracy.
 
@@ -420,32 +420,36 @@ before relying on current source behavior. Historical proposed capabilities are
 kept separately in [Design reference](DESIGN_REFERENCE.md).
 
 
-## Embedded graph migration (2026-10-23)
+## Embedded graph migration (2026-10-24)
 
-LadybugDB 0.21.2 is the selected local embedded runtime join topology store.
-There is no graph database daemon, cloud connection, model call or extension download.
-Bootstrap builds a catalog-digest-named file under `data_dir/graphs`, checkpoints and
-closes its single writer, then exposes read-only handles to API workers. New versions
-use different files. Runtime leases retain old handles until in-flight work drains.
-SQLite remains the approval, grants, active-pointer and session authority.
-Pure application adjacency performs structural catalog validation and drift impact;
-this transient evidence is not another database or a runtime fallback.
+SurrealDB Python 2.0.0 provides the embedded runtime graph and optional exact-cosine
+vector projections. The package includes its native engine. No graph daemon, endpoint,
+cloud account, model call or extension download is used. The application no longer loads
+LadybugDB or provisions an OpenSSL DLL directory for the graph.
 
-`NL2SQL_GRAPH_BUFFER_MB` bounds each handle's native buffer pool (default 64 MiB,
-32?1024 MiB). Native query threads are fixed to one per handle. Memory also includes
-engine overhead, live bundles and search/compiler resources: this is not a process RSS cap.
-`NL2SQL_GRAPH_NATIVE_DIR` optionally names an approved Windows DLL directory; never
-point it at an untrusted/user-upload directory. The current Windows wheel requires
-OpenSSL 3 DLLs. A wheel install alone does not establish native-load compatibility.
+SurrealKV locks a persistent directory to one process. To preserve multiple API workers
+and the separate monitor, bootstrap atomically publishes a canonical, catalog-digest-named
+`graphs/<digest>.surreal.json` snapshot, then each handle builds its own `mem://` SurrealDB.
+The snapshot includes format, catalog identity, nodes, certified join records and lineage.
+Startup compares the entire bounded artifact with the approved catalog before native
+allocation, then verifies the native join/lineage topology. It never executes stored query text.
+Queries use bound values and native graph links. Only certified, view-allowed edges enter
+frontier BFS; graph data cannot confer permissions. Locks serialize use and retirement.
+Runtime leases retain old handles until in-flight work drains.
 
-Graph creation uses a private temporary file and exclusive `.building` reservation.
-Failures do not replace an existing graph. A stale reservation after process death
-requires operator inspection and removal while builders are stopped. Never delete an
-active graph or clean files based only on one worker's local lease count. Back up graph
-files together with their approved catalogs; they are rebuildable projections.
-Read-only startup verifies catalog identity and certified join records. Corrupt files
-fail closed; restore/rebuild under maintenance rather than editing the active file.
-Scheduling remains disabled by default and stages changes for review, never auto-certifies.
+SQLite remains the approval, grants, active-pointer and session authority. Pure application
+adjacency remains for structural validation and drift evidence, with no runtime DB fallback.
+Memory stores are rebuilt, not shared between workers; actual RSS and office capacity require
+measurement. The retained retrieval memory setting is a conservative admission estimate,
+not a SurrealDB allocator or RSS cap. Obsolete graph buffer/DLL settings are removed.
+
+Graph publication uses a private temporary file, flush/fsync, exclusive `.building`
+reservation and atomic rename. Failed builds never overwrite an existing version. A stale
+reservation after process death requires maintenance inspection with builders stopped.
+Existing `.lbdb` files are retained; new code does not read or convert them. Rebuild only
+from the approved catalog. The changed search/backend fingerprints require a newly staged,
+reviewed and signed managed publication. Existing approvals are not rewritten or bypassed.
+See [migration instructions](SURREALDB_MIGRATION.md) before upgrading an office runtime.
 
 ## Automatic preparation and SLM context protection (2026-10-23)
 
@@ -489,7 +493,7 @@ creation/discovery timestamps. Driver storage failures are translated by infrast
 Failure carries a category; transport maps categories to the unchanged HTTP contracts. Both chat
 routes use the same invocation/metrics boundary and inherited application deadline.
 
-Retrieval preflights schema plus metric text and aggregate configured native buffers. Metadata
+Retrieval preflights schema plus metric text and aggregate projection memory estimates. Metadata
 cache checkpoints are separate from query encoding and select metadata vectors explicitly. Redis
 continues to coordinate admission only. The default office profile is lexical-only, with optional
 approved private-HTTP embeddings and automatic vector preparation when enabled.

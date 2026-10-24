@@ -3,19 +3,9 @@
 import sqlite3
 from pathlib import Path
 
+from nl2sql.bootstrap.sqlite_runtime import supports_fts5, wal_patched
 from nl2sql.domain.models import Failure
 from nl2sql.settings import Settings
-
-
-def wal_patched(version: tuple[int, ...]) -> bool:
-    """SQLite's WAL-reset fix, including its documented maintenance backports."""
-    return (
-        version >= (3, 51, 3)
-        or version[:2] == (3, 50)
-        and version >= (3, 50, 7)
-        or version[:2] == (3, 44)
-        and version >= (3, 44, 6)
-    )
 
 
 def office_preflight(settings: Settings) -> None:
@@ -57,4 +47,8 @@ def require_sqlite_runtime() -> None:
             "Use an approved Python build linked to SQLite 3.51.3+ "
             "or a documented patched backport.",
             "unavailable",
+        )
+    if not supports_fts5():
+        raise Failure(
+            "SQLITE_FTS5_REQUIRED", "Use an approved Python build with SQLite FTS5.", "unavailable"
         )

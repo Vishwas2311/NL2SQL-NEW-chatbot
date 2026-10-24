@@ -56,6 +56,9 @@ See [Operations](docs/OPERATIONS.md#redis-verification) for synthetic startup,
 shared rate/active-chat limits, failure recovery and session-retention maintenance.
 
 For office transfer, `python3.13 setup_env.py --office` includes pinned Oracle/Redis clients.
+For Windows, first use the [verified runtime candidate and diagnostic](docs/WINDOWS_RUNTIME.md);
+stock Python's version label does not guarantee a patched SQLite library. Office setup now
+checks the selected interpreter before creating an environment or installing packages.
 Recreate `.venv` on the Mac. After configuring protected settings, approved endpoints and
 signed metadata review, start automatic resource preparation and monitoring:
 
@@ -64,17 +67,17 @@ python -m nl2sql office --settings /approved/office.json --env-file /approved/of
 ```
 
 See OPERATIONS.md for first-time certification. You do not build graph/vector indexes by
-hand. FAISS is removed; configured metadata vectors use embedded Ladybug. The launcher
+hand. FAISS is removed; configured metadata vectors use embedded SurrealDB. The launcher
 never invents business definitions/access approval and downloads no model weights.
 
 
 Architecture remediation (24 October 2026) adds versioned storage upgrades, typed model
-clarification, current-scope follow-up context, complete schema-text/native-buffer preflight and
+clarification, current-scope follow-up context, schema-text and estimated projection-memory preflight and
 shared request/error handling. The office template defaults to exact/BM25 retrieval; embeddings
 remain optional and are built automatically when approved and enabled. Use private copies of
 `config/office.example.json` and the numbered `config/office.env.example`.
 
-Office setup checks the actual linked SQLite library for the WAL-reset fix. Python's version
+Office setup checks FTS5 and the actual linked SQLite library for the WAL-reset fix. Python's version
 label alone is insufficient; use an approved Python 3.13 build with SQLite 3.51.3+ or a documented
 patched backport. Restricted startup rejects source-tree/synchronized/relative storage paths.
 No company Oracle/model connection, weights download, transfer, push or deployment is performed

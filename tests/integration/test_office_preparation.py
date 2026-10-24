@@ -10,7 +10,7 @@ from nl2sql.bootstrap.managed import build_managed_resources
 from nl2sql.cli.metadata import MetadataOptions, run_metadata
 from nl2sql.domain.models import Failure
 from nl2sql.infrastructure.metadata.store import MetadataRepository
-from nl2sql.infrastructure.retrieval.vector_index import LadybugVectorIndex
+from nl2sql.infrastructure.retrieval.vector_index import SurrealVectorIndex
 from nl2sql.settings import load_settings
 
 
@@ -39,7 +39,7 @@ def test_prepare_generates_resources_after_signed_review_and_monitor_stages_upda
     signatures = run("sign-demo", candidate_id=pending["candidate_id"])
     ready = run("prepare", approval_file=Path(signatures["private_output"]))
     assert ready["state"] == "ready" and ready["next_step"] == "serve"
-    assert list((root / "data/graphs").glob("*.lbdb"))
+    assert list((root / "data/graphs").glob("*.surreal.json"))
     assert run("prepare")["state"] == "ready"
     settings = load_settings(root / "data/settings.json", env).model_copy(
         update={"metadata_root": root}
@@ -48,7 +48,7 @@ def test_prepare_generates_resources_after_signed_review_and_monitor_stages_upda
     try:
         with resources.manager.pin() as bundle:
             assert all(
-                isinstance(index, LadybugVectorIndex)
+                isinstance(index, SurrealVectorIndex)
                 for index in bundle.retriever._native_indexes.values()
             )
         answer = resources.service.chat(

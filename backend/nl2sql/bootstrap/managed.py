@@ -109,7 +109,6 @@ def build_managed_resources(
                 encoder,
                 version,
                 retrieval_options=settings.retrieval_options,
-                native_dir=settings.graph_native_dir,
             ),
             runtime_check=factory.check,
         )

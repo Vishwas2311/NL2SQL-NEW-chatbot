@@ -7,7 +7,6 @@ import sqlite3
 from contextlib import ExitStack
 from dataclasses import dataclass
 from functools import cached_property
-from pathlib import Path
 from threading import RLock
 
 from nl2sql.application.ports import Candidate, EmbeddingProvider
@@ -20,7 +19,7 @@ from nl2sql.domain.search import (
     schema_records,
 )
 from nl2sql.infrastructure.retrieval.vector_index import (
-    LadybugVectorIndex,
+    SurrealVectorIndex,
 )
 from nl2sql.settings import RetrievalOptions
 
@@ -63,21 +62,18 @@ class Retriever:
         principals: tuple[Principal, ...],
         encoder: EmbeddingProvider | None = None,
         options: RetrievalOptions | None = None,
-        native_dir: Path | None = None,
     ) -> None:
         self.catalog = catalog
         self.options = options or RetrievalOptions()
         self._indexes: dict[tuple[str, ...], SearchPartition] = {}
         self.encoder = encoder
-        self._native_indexes: dict[tuple[str, ...], LadybugVectorIndex] = {}
+        self._native_indexes: dict[tuple[str, ...], SurrealVectorIndex] = {}
         self._vectors: dict[tuple[str, ...], tuple[tuple[str, tuple[float, ...]], ...]] = {}
         with ExitStack() as cleanup:
-            self._build(principals, cleanup, native_dir)
+            self._build(principals, cleanup)
             cleanup.pop_all()
 
-    def _build(
-        self, principals: tuple[Principal, ...], cleanup: ExitStack, native_dir: Path | None
-    ) -> None:
+    def _build(self, principals: tuple[Principal, ...], cleanup: ExitStack) -> None:
         documents = dict(search_records(self.catalog))
         partitions: dict[tuple[str, ...], tuple[SearchRecord, ...]] = {}
         text_bytes = components = 0
@@ -99,12 +95,12 @@ class Retriever:
         if native_mb > self.options.max_native_mb:
             raise Failure(
                 "BUNDLE_LIMIT",
-                "Partitioned retrieval exceeds its native buffer budget.",
+                "Partitioned retrieval exceeds its estimated projection memory budget.",
                 "too_large",
             )
         self.budget = {
             "text_bytes": text_bytes,
-            "native_buffer_mb": native_mb,
+            "estimated_projection_mb": native_mb,
             "partitions": len(partitions),
         }
         prepared: dict[tuple[str, ...], tuple[tuple[str, tuple[float, ...]], ...]] = {}
@@ -158,7 +154,7 @@ class Retriever:
             self._indexes[key] = SearchPartition(connection, RLock())
             if key in prepared:
                 self._vectors[key] = prepared[key]
-                index = LadybugVectorIndex(prepared[key], native_dir)
+                index = SurrealVectorIndex(prepared[key])
                 cleanup.callback(index.close)
                 self._native_indexes[key] = index
 
@@ -339,7 +335,7 @@ class Retriever:
         metrics = {metric.id: metric for metric in self.catalog.metrics}
         return {
             "catalog_version": self.catalog.version,
-            "backend": "ladybug-exact-cosine",
+            "backend": "surreal-exact-cosine",
             "partitions": [
                 {
                     "metric_grants": scope,
