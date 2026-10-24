@@ -14,6 +14,13 @@ from nl2sql.application.ports import ModelProvider, ModelResult
 from nl2sql.domain.models import Failure
 from nl2sql.domain.planning import PlanningDecision, parse_decision
 from nl2sql.infrastructure.http_policy import private_client, private_endpoint
+from nl2sql.infrastructure.inference.http_protocol import (
+    authorize_context,
+    configure_payload,
+    configured_endpoint,
+    provider_failure,
+    response_as_chat,
+)
 from nl2sql.infrastructure.inference.token_budget import fit_payload
 from nl2sql.settings import Settings
 
@@ -152,27 +159,34 @@ class _HTTPPlanModel:
             payload["response_format"] = {"type": "json_object"}
         elif self.settings.model_output_mode == "text_json":
             payload.pop("response_format")
-        if self.settings.model_key is not None:
-            headers["Authorization"] = "Bearer " + self.settings.model_key.get_secret_value()
+        payload = configure_payload(payload, self.settings)
+        if self.settings.model_key is not None and self.settings.model_auth != "none":
+            key = self.settings.model_key.get_secret_value()
+            if self.settings.model_auth == "api_key":
+                headers["api-key"] = key
+            else:
+                headers["Authorization"] = "Bearer " + key
         deadline = min(deadline, time.time() + self.settings.model_timeout_seconds)
         counted_tokens = fit_payload(
             payload, self.settings, self.client, headers, deadline, cancelled
         )
+        endpoint = httpx.URL(self.settings.model_endpoint or "")
+        if self.settings.model_api_version:
+            endpoint = endpoint.copy_add_param("api-version", self.settings.model_api_version)
         for attempt in range(self.settings.model_retries + 1):
             _check_cancellation(cancelled)
             remaining = min(self.settings.model_timeout_seconds, deadline - time.time())
             if remaining <= 0:
                 raise Failure("MODEL_TIMEOUT", "The inference request timed out.", "timeout")
+            data = bytearray()
             try:
                 with self.client.stream(
                     "POST",
-                    self.settings.model_endpoint or "",
+                    endpoint,
                     json=payload,
                     headers=headers,
                     timeout=remaining,
                 ) as response:
-                    response.raise_for_status()
-                    data = bytearray()
                     for chunk in response.iter_bytes():
                         _check_cancellation(cancelled)
                         if len(data) + len(chunk) > 256_000 or time.time() >= deadline:
@@ -182,12 +196,31 @@ class _HTTPPlanModel:
                                 "unavailable",
                             )
                         data.extend(chunk)
-                reply = _Reply.model_validate_json(bytes(data))
-                if reply.model != self.settings.model_name:
+                    response.raise_for_status()
+                reply = _Reply.model_validate_json(
+                    response_as_chat(bytes(data))
+                    if self.settings.model_api == "responses"
+                    else bytes(data)
+                )
+                if reply.model not in (
+                    self.settings.model_response_ids or (self.settings.model_name,)
+                ):
                     raise Failure(
                         "MODEL_IDENTITY",
                         "The runtime returned a different model identity.",
                         "unavailable",
+                    )
+                if reply.usage and (
+                    reply.usage.prompt_tokens
+                    + self.settings.model_max_tokens
+                    + self.settings.model_token_safety_margin
+                    > self.settings.model_context_tokens
+                    or reply.usage.completion_tokens > self.settings.model_max_tokens
+                ):
+                    raise Failure(
+                        "MODEL_CONTEXT_BUDGET",
+                        "The runtime exceeded its configured token budget.",
+                        "invalid",
                     )
                 if reply.choices and (
                     reply.choices[0].message.role != "assistant"
@@ -230,6 +263,10 @@ class _HTTPPlanModel:
                         "MODEL_TIMEOUT", "The inference request timed out.", "timeout"
                     ) from error
             except httpx.HTTPError as error:
+                if isinstance(error, httpx.HTTPStatusError):
+                    failure = provider_failure(error, bytes(data), self.settings)
+                    if failure is not None:
+                        raise failure from None
                 if _transient(error) and attempt < self.settings.model_retries:
                     continue
                 raise Failure(
@@ -248,6 +285,21 @@ class _HTTPPlanModel:
 
 class PrivateHTTPModel(_HTTPPlanModel):
     """Private-only OpenAI-compatible adapter; hosted settings never bypass its host gate."""
+
+
+class ConfiguredHTTPModel(_HTTPPlanModel):
+    """Provider configuration and approved data/network policy are independent choices."""
+
+    @staticmethod
+    def _validate_endpoint(settings: Settings) -> None:
+        configured_endpoint(settings)
+
+    def plan(
+        self, question: str, context: str, deadline: float, cancelled: Event | None = None
+    ) -> ModelResult:
+        """Recheck actual metadata before token counting or generation."""
+        authorize_context(context, self.settings)
+        return super().plan(question, context, deadline, cancelled)
 
 
 class HostedHTTPModel(_HTTPPlanModel):
@@ -303,6 +355,7 @@ _PROVIDERS: dict[str, Callable[[Settings], ModelProvider]] = {
     "scripted": lambda settings: MockModel(settings.scripted_plans),
     "private_http": PrivateHTTPModel,
     "hosted_http": HostedHTTPModel,
+    "configured_http": ConfiguredHTTPModel,
 }
 
 
@@ -324,3 +377,27 @@ def build_model(settings: Settings) -> ModelProvider:
     ):
         raise ValueError("Restricted inference requires an approved runtime token-count endpoint")
     return _PROVIDERS[settings.model_mode](settings)
+
+
+def probe_model(settings: Settings) -> ModelResult:
+    """Explicit connectivity/typed-output probe; never opens a query database."""
+    if settings.model_mode in {"disabled", "scripted"}:
+        raise Failure(
+            "MODEL_UNAVAILABLE", "Select an HTTP planning model before probing.", "unavailable"
+        )
+    provider = build_model(settings)
+    try:
+        return provider.plan(
+            "Synthetic installation probe: no metrics are available; ask for clarification.",
+            json.dumps(
+                {
+                    "classification": settings.data_classification,
+                    "metrics": [],
+                    "schema_records": [],
+                    "schema": PlanningDecision.model_json_schema(),
+                }
+            ),
+            time.time() + settings.model_timeout_seconds,
+        )
+    finally:
+        provider.close()

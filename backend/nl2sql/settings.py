@@ -41,7 +41,9 @@ class RetrievalOptions(FrozenModel):
 class Settings(BaseSettings):
     """Local budgets are provisional; enterprise policy must approve production values."""
 
-    model_config = SettingsConfigDict(env_prefix="NL2SQL_", env_file=None, extra="forbid")
+    model_config = SettingsConfigDict(
+        env_prefix="NL2SQL_", env_file=None, env_parse_none_str="null", extra="forbid"
+    )
     data_dir: Path = Path(".local")
     catalog_path: Path = Path("metadata/synthetic/catalog.json")
     catalog_digest: str = ""
@@ -65,9 +67,21 @@ class Settings(BaseSettings):
     approved_model_hosts: tuple[str, ...] = ()
     model_name: str = "gemma-4-12b"
     model_key: SecretStr | None = None
+    model_api: Literal["chat_completions", "responses"] = "chat_completions"
+    model_auth: Literal["bearer", "api_key", "none"] = "bearer"
+    model_network: Literal["private", "approved_https"] = "private"
+    model_restricted_data_authorized: bool = False
+    model_api_version: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9._-]{1,40}$")
+    model_response_ids: tuple[str, ...] = ()
+    model_temperature: float | None = Field(default=0, ge=0, le=2, allow_inf_nan=False)
+    model_reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] | None = (
+        None
+    )
+    model_token_parameter: Literal["max_tokens", "max_completion_tokens"] = "max_tokens"
+    model_token_budget: Literal["runtime", "provider"] = "runtime"
     model_timeout_seconds: float = Field(default=8, gt=0, le=60)
     model_retries: int = Field(default=0, ge=0, le=1)
-    model_max_tokens: int = Field(default=1200, ge=100, le=4000)
+    model_max_tokens: int = Field(default=1200, ge=100, le=128_000)
     model_output_mode: Literal["json_schema", "json_object", "text_json"] = "json_schema"
     model_context_bytes: int = Field(default=64_000, ge=16_000, le=256_000)
     model_context_tokens: int = Field(default=8192, ge=1024, le=1_048_576)
@@ -141,6 +155,11 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Hosted inference requires explicit synthetic data egress authorization"
             )
+        if self.model_mode == "configured_http":
+            if self.model_auth == "api_key" and self.model_key is None:
+                raise ValueError("API-key authentication requires a model key")
+            if self.model_token_budget == "runtime" and self.model_token_count_endpoint is None:
+                raise ValueError("Runtime token budgeting requires its configured count endpoint")
         if self.retrieval_top_k > self.retrieval_max_candidates:
             raise ValueError("Retrieval top K exceeds its candidate budget")
         if self.model_max_tokens + self.model_token_safety_margin >= self.model_context_tokens:

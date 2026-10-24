@@ -21,6 +21,11 @@ def test_generated_profile_accepts_model_path_entered_later_in_env(tmp_path):
     with environment.open("a", encoding="utf-8") as target:
         target.write(f"\nNL2SQL_EMBEDDING_MODE=local\nNL2SQL_EMBEDDING_LOCAL_PATH='{model}'\n")
     loaded = load_settings(settings, env_file=environment)
+    assert loaded.model_mode == "configured_http"
+    assert loaded.model_token_budget == "provider"
+    assert loaded.model_token_count_endpoint is None
+    assert loaded.model_temperature is None
+    assert loaded.model_restricted_data_authorized is False
     assert loaded.embedding_mode == "local"
     assert loaded.embedding_local_path == model
     assert "embedding_dimension" not in loaded.model_fields_set
@@ -237,4 +242,6 @@ def test_http_embedding_probe_requires_explicit_start(
     )  # Missing office fields; no other providers run.
     assert len(calls) == (2 if live else 1)
     assert calls[-1] == "close"
-    assert ("NL2SQL_PRINCIPALS" in capsys.readouterr().out) is (not published)
+    output = capsys.readouterr().out
+    assert ("NL2SQL_PRINCIPALS" in output) is (not published)
+    assert "NL2SQL_MODEL_TOKEN_COUNT_ENDPOINT" not in output

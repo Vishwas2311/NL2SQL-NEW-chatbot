@@ -11,7 +11,6 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import time
 import urllib.request
 from pathlib import Path
 from uuid import uuid4
@@ -224,7 +223,7 @@ def verify_profile(root: Path, live: bool) -> bool:
     """List missing field names, exercise local models, and probe approved HTTP only on --start."""
     from nl2sql.bootstrap.office_checks import office_preflight
     from nl2sql.infrastructure.databases.oracle_factory import OracleExecutionSettings
-    from nl2sql.infrastructure.inference.model import build_model
+    from nl2sql.infrastructure.inference.model import build_model, probe_model
     from nl2sql.infrastructure.metadata.config import authority_from_environment
     from nl2sql.infrastructure.metadata.oracle_discovery import OracleDiscoverySettings
     from nl2sql.infrastructure.metadata.store import MetadataRepository
@@ -290,7 +289,19 @@ def verify_profile(root: Path, live: bool) -> bool:
             not settings.model_endpoint or settings.model_name.startswith("SET_")
         ):
             missing.append("NL2SQL_MODEL_ENDPOINT and NL2SQL_MODEL_NAME")
-        if settings.model_mode != "disabled" and not settings.model_token_count_endpoint:
+        if (
+            settings.model_mode == "configured_http"
+            and not settings.model_restricted_data_authorized
+        ):
+            missing.append("NL2SQL_MODEL_RESTRICTED_DATA_AUTHORIZED (existing endpoint approval)")
+        if (
+            settings.model_mode != "disabled"
+            and not (
+                settings.model_mode == "configured_http"
+                and settings.model_token_budget == "provider"
+            )
+            and not settings.model_token_count_endpoint
+        ):
             missing.append("NL2SQL_MODEL_TOKEN_COUNT_ENDPOINT")
         encoder = build_embedding(settings)
         if encoder is not None:
@@ -321,16 +332,10 @@ def verify_profile(root: Path, live: bool) -> bool:
             )
         if live:
             authority.authenticate(os.environ.get("NL2SQL_METADATA_ADMIN_TOKEN"), "schedule")
-        provider = build_model(settings)
-        try:
-            if live and settings.model_mode != "disabled":
-                provider.plan(
-                    "Synthetic installation probe: ask for clarification.",
-                    '{"metrics":[],"schema_records":[]}',
-                    time.time() + settings.model_timeout_seconds,
-                )
-        finally:
-            provider.close()
+        if live and settings.model_mode != "disabled":
+            probe_model(settings)
+        else:
+            build_model(settings).close()
         if live:
             limiter = build_rate_limiter(settings)
             try:

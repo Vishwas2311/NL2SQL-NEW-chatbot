@@ -468,10 +468,18 @@ can be discovered and staged without loading the synthetic fallback catalog. Cha
 manifests require restaging/review of older bundles; obsolete fingerprints are never rewritten.
 
 Metric grounding now expands authorized typed column/table/view BM25 evidence. Exact
-aliases retain their fast route. Restricted HTTP planning requires the runtime's full-request
-token counter, output reserve and configured context window. Optional rich records may be
+aliases retain their fast route. Legacy restricted HTTP planning and the optional runtime
+strategy use the runtime's full-request token counter, output reserve and configured context window.
+The configured provider strategy delegates context/output enforcement to the model server
+without inventing a counter endpoint; local context/reply bytes and deadlines remain bounded.
+Reported usage is checked against configured limits. Optional rich records may be
 removed once; required contracts cannot be clipped. Malformed/oversized counts fail before
 generation. Private/TLS, same-origin and total deadline controls cover counting/generation.
+`configured_http` separately selects private-address or approved-HTTPS networking, Chat
+Completions or Responses, auth, API version and allowed model response identities. Restricted
+contexts require endpoint authorization both at construction and on each actual model call.
+Tools, refusals, incomplete responses and unvalidated plans cannot execute SQL. See
+[provider configuration](LLM_PROVIDERS.md). Embedding, graph, Redis and Oracle ownership are unchanged.
 The six-edge executor ceiling now matches planning, with lower configured budgets honored.
 This is bounded supported planning, not a cost-based small/medium/large classifier.
 

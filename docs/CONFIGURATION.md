@@ -28,11 +28,19 @@ Oracle query accounts and reviewer trust. Precedence is actual environment > exp
 selected environment file > JSON > defaults. No parent-directory dotenv is searched and
 dotenv interpolation is disabled. Keep real secrets in the approved secret manager when available.
 
-Restricted HTTP planning requires `model_token_count_endpoint` on the same origin as
-`model_endpoint`. It receives the complete chat-completion body and returns
+Use [configurable planning providers](LLM_PROVIDERS.md) for local/OpenAI-compatible
+or Azure Chat Completions/Responses. `configured_http` separates API/authentication,
+private versus approved HTTPS networking and restricted-data authorization. Its default
+office token strategy is `provider`: the server enforces context/output limits, with
+local byte/deadline limits and safe handling of context rejections. This strategy needs
+no separate token counter and does not claim exact pre-generation input counting.
+
+Optional `model_token_budget=runtime` and legacy restricted `private_http` require
+`model_token_count_endpoint` on the same origin as `model_endpoint`. It receives the
+complete selected protocol payload and returns
 `{"input_tokens": 123}` using that runtime's tokenizer/chat template. The implementation
 matches llama.cpp's documented `/v1/chat/completions/input_tokens` contract; other runtimes
-must provide that contract or use a trusted provider adapter. The counter is not another
+can select provider budgeting or provide that contract. The counter is not another
 generation call. The application reserves `model_max_tokens` plus
 `model_token_safety_margin` within `model_context_tokens`, removes optional rich evidence
 once if necessary and rejects a request that still cannot fit. Byte limits remain an
@@ -267,12 +275,20 @@ and attest existing organizational approvals, rather than creating database perm
 The Redis Compose YAML starts only local Redis; it does not configure the separate API.
 
 Model fields: `model_mode`, `model_name`, `model_endpoint`, `approved_model_hosts`, `model_key`,
+`model_api` (chat_completions/responses), `model_auth` (bearer/api_key/none),
+`model_network` (private/approved_https), `model_restricted_data_authorized`,
+`model_api_version`, `model_response_ids`, `model_temperature` (`null` omits it),
+`model_reasoning_effort`, `model_token_parameter` (max_tokens/max_completion_tokens),
+`model_token_budget` (provider/runtime),
 `model_output_mode`, `model_timeout_seconds`, `model_retries`, `model_max_tokens`,
 `model_context_bytes`, `model_context_tokens`, `model_token_count_endpoint`,
-`model_token_safety_margin`, `model_ca_bundle`. Modes are disabled, scripted, private_http and hosted_http.
-`register_model` accepts additional trusted application adapters. Authentication is optional bearer
-authentication to the approved endpoint; TLS validation is always enabled. The HTTP contract is
-OpenAI-compatible chat completions. Model tools, wrong IDs, malformed JSON and over-budget replies
+`model_token_safety_margin`, `model_ca_bundle`. Modes are disabled, scripted,
+configured_http, private_http and hosted_http.
+`register_model` accepts additional trusted application adapters. Configured HTTP supports API-key,
+bearer or no authentication to the approved endpoint; TLS validation is always enabled for
+remote endpoints. The contracts are OpenAI-compatible Chat Completions and Responses.
+Azure deployment names can differ from returned IDs; explicitly list verified `model_response_ids`
+rather than disabling identity checks. Model tools, wrong IDs, malformed JSON and over-budget replies
 are rejected. Output modes are JSON schema, JSON object, or explicitly configured strict text JSON
 (an entire JSON document, optionally inside one JSON code fence). No raw SQL path exists.
 
@@ -432,7 +448,7 @@ configuration. The generic application/development default remains 8192 for othe
 Actual process environment overrides the selected environment file, which overrides JSON;
 clear stale values when qualifying the office profile. This configuration does not allocate
 model memory or establish native model support. Verify effective context per request/slot,
-the same-origin runtime token counter and output reserve on the selected inference runtime.
+the chosen provider token strategy or same-origin runtime token counter and output reserve.
 `model_context_bytes` remains a separate 64000-byte metadata bound by default; a 100K token
 ceiling is not a requirement to fill it. Existing 60-second model and 120-second office-turn
 budgets still apply; use measured prefill/generation behavior before changing timeout policy.

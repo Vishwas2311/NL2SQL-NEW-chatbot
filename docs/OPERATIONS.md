@@ -401,9 +401,11 @@ is not a native SQLite patch. Official advisory: https://sqlite.org/wal.html#wal
    Run governed preparation/staging and obtain matching signed review for a changed candidate.
    Do not reuse a prior approval manifest for a different identity or rewrite its signature.
 5. Use protected copies of config/office.example.json and config/office.env.example, configure
-   actual absolute paths, the chosen private model/token counter and separate approved Oracle
+   actual absolute paths, the chosen model/provider/token strategy and separate approved Oracle
    accounts. Set exact model IDs; placeholders/loopback ports are not running integrations.
    `validate-config` reports sanitized configuration/budgets, not successful company connectivity.
+   Use the explicit `check-model` command in [the provider guide](LLM_PROVIDERS.md) to test
+   the chosen endpoint with synthetic content before office startup; it never connects Oracle.
 6. Run the normal first-time certification workflow, then office preparation/startup. Graph and
    optional vector resources are derived automatically. The stock launcher supports disabled,
    private_http and built-in local Sentence Transformers embeddings. See

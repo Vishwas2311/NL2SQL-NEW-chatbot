@@ -7,6 +7,11 @@ or use the installer below. Separate custom requirements/lock files are no longe
 Platform markers retain the existing non-Windows dependency set; local CPU embeddings
 remain qualified for Windows x64 with Python 3.13.
 
+Fresh profiles use `configured_http` with provider token budgeting: no separate token-count
+URL is required. Select local or Azure networking/API/authentication in the private environment
+file using [the provider guide](LLM_PROVIDERS.md). Existing private profiles are preserved;
+update their model fields explicitly when adopting the new mode.
+
 `install_office.py` is the single entry point for Windows x64. It installs the complete
 supported Python environment from `requirements.txt`: core services,
 Oracle and Redis clients, CPU Sentence Transformers/PyTorch, and quality tools. It does
@@ -62,7 +67,7 @@ placeholders so this path-only configuration works.
 | Oracle discovery account | Separate credentials/owners and approval flags; dictionary evidence still requires signed business/access certification |
 | Authentication | Server-owned principals and token hashes or the configured JWT trust settings; user IDs do not confer grants |
 | Metadata certification | Administrative trust key, reviewer configuration and valid signed approvals; setup never fabricates them |
-| Planning model | Approved chat-completions endpoint, exact model/deployment ID and compatible same-origin token-count endpoint; credentials/CA where needed |
+| Planning model | Approved local/Azure/compatible Chat Completions or Responses endpoint, deployment/model ID, selected auth/network policy and token strategy; see [provider guide](LLM_PROVIDERS.md) |
 | Local embeddings | Existing saved text-model folder; the loader infers dimension, model name and a content digest |
 | Redis | Approved URL/CA and `NL2SQL_RATE_LIMIT_BACKEND=redis` when using multiple API workers |
 
