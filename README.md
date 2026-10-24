@@ -22,6 +22,11 @@ are preserved for a separately authorized integration; no replacement UI is buil
 
 Quick local start from this directory:
 
+Dependency files use the conventional pip layout: `pyproject.toml` declares project/build
+metadata and `requirements.txt` pins the complete tested install set. Setup and CI use
+`requirements.txt`; it includes Oracle/Redis clients, quality tools and the Windows x64
+CPU embedding runtime. Model weights and external servers are supplied separately.
+
 ```powershell
 python setup_env.py
 .\.venv\Scripts\python -m nl2sql init-demo
@@ -41,7 +46,7 @@ The source exporter is `python export_project_to_txt.py`; its generated output
 is ignored and excludes private runtime data.
 
 For concurrent VM workers, the shared Redis limiter is implemented. Install
-`requirements-redis.lock`, inject the approved Redis URL, and select
+`requirements.txt`, inject the approved Redis URL, and select
 `config/vm.env.example` with the chosen settings file. The supported launcher is
 `python -m nl2sql serve --settings <settings.json> --env-file config/vm.env.example`.
 See the configuration and operations guides before office use; no VM deployment
@@ -58,7 +63,8 @@ shared rate/active-chat limits, failure recovery and session-retention maintenan
 For a complete Windows office environment, use [install_office.py](docs/OFFICE_INSTALLER.md).
 It installs the pinned core, Oracle/Redis clients, local CPU embedding runtime and quality
 tools, creates visible private connection fields and checks readiness before startup.
-`python3.13 setup_env.py --office` remains the smaller Oracle/Redis client-only option.
+`python3.13 setup_env.py --office` installs the same packages with the office runtime preflight;
+the full installer additionally prepares private profiles and verifies startup readiness.
 For Windows, first use the [verified runtime candidate and diagnostic](docs/WINDOWS_RUNTIME.md);
 stock Python's version label does not guarantee a patched SQLite library. Office setup now
 checks the selected interpreter before creating an environment or installing packages.

@@ -4,7 +4,8 @@
 
 Use [the single Windows office installer](OFFICE_INSTALLER.md) for the complete CPU
 embedding runtime, Oracle/Redis clients, quality tools and private connection profile.
-`python3.13 setup_env.py --office` remains a smaller setup without local embedding packages.
+`python3.13 setup_env.py --office` installs the same complete dependency set with the office
+runtime preflight; the installer additionally prepares private profiles and checks readiness.
 Office setup checks the linked SQLite
 library for the WAL-reset fix; Python 3.13 alone is insufficient. Use SQLite 3.51.3+
 or the documented 3.50.7/3.44.6 maintenance backport. A pip dependency update does not
@@ -79,7 +80,7 @@ development defaults do not enforce ACLs or prevent cloud synchronization.
 Install the pinned optional Redis client with the chosen Python environment:
 
 ```text
-python -m pip install -r requirements-redis.lock
+python -m pip install -r requirements.txt
 python -m pip install --no-deps -e .
 ```
 
@@ -181,7 +182,7 @@ python setup_env.py
 .\.venv\Scripts\python -m nl2sql serve --env-file .env
 ```
 
-`setup_env.py` installs the pinned core dependencies and project, creates `.env`
+`setup_env.py` installs the complete pinned `requirements.txt` and project, creates `.env`
 from its example if absent, and preserves existing settings. `init-demo` creates
 fictional data and random credentials in ignored `.local/` storage. It refuses
 to overwrite an existing database; skip it for an initialized demo or select a
@@ -197,11 +198,8 @@ From this project's root in PowerShell:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-core.lock
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m pip install --no-deps -e .
-# Optional approved Oracle driver, only when needed:
-# .\.venv\Scripts\python.exe -m pip install -r requirements-oracle.lock
-# Existing development tools remain pinned in requirements.lock.
 .\.venv\Scripts\python.exe -m nl2sql init-demo --settings .local/hardening-demo/settings.json --catalog .local/hardening-demo/catalog.json
 .\.venv\Scripts\python.exe -m nl2sql validate-config --settings .local/hardening-demo/settings.json --env-file .env.example
 .\.venv\Scripts\python.exe -m nl2sql serve --settings .local/hardening-demo/settings.json --env-file .env.example

@@ -57,8 +57,14 @@ DLL hooks, extra graph server, native hard-memory-cap claim or automatic approva
 Keep historical numbered design briefs/reports; use docs/SURREALDB_MIGRATION.md for upgrades.
 
 2026-10-24: user authorized complete Windows office setup and the optional CPU local
-Sentence Transformers runtime. `install_office.py` uses the complete Windows lock, preserves
+Sentence Transformers runtime. `install_office.py` uses the complete pinned requirements, preserves
 private profiles/data and verifies runtime before environment changes. Built-in standard
 text encoders load existing safetensors folders offline without custom code or downloads;
 all preparation/monitor/API processes use a file-content encoder identity. No automatic
 Oracle/Redis server installation, fabricated approvals or company connections in local tests.
+
+2026-10-24: user requested conventional dependency filenames. Keep pyproject.toml for
+project/build metadata and one complete, version-pinned requirements.txt for pip installation.
+Setup and CI use that file; Windows x64 CPU embedding pins have platform markers. Do not
+reintroduce separate custom requirements lock files or change qualified package versions
+as part of a naming cleanup. Preserve office preflight, private profiles and data.

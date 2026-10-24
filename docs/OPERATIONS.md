@@ -22,7 +22,7 @@ cloud sync. Verify these properties on the office machine before restricted use.
 
 ## Concurrent workers and Redis
 
-Follow CONFIGURATION.md to install requirements-redis.lock and provision the Redis
+Follow CONFIGURATION.md to install requirements.txt and provision the Redis
 URL through approved secret injection. The examples below describe prepared
 commands, not approval to connect to office Oracle or deploy the application.
 
@@ -133,7 +133,7 @@ or VM Redis qualification is implied merely by adding the workflow.
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements.lock
+.\.venv\Scripts\python -m pip install -r requirements.txt
 .\.venv\Scripts\python -m pip install --no-deps -e .
 .\.venv\Scripts\python scripts/check.py
 .\.venv\Scripts\python scripts/benchmark.py

@@ -89,7 +89,7 @@ The candidate's 3.53.1 satisfies the mainline requirement directly.
 5. Install the pinned development tools when running the full checker:
 
    ```powershell
-   .\.venv\Scripts\python.exe -m pip install -r requirements.lock
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
    .\.venv\Scripts\python.exe -m pip check
    .\.venv\Scripts\python.exe scripts/check.py
    ```

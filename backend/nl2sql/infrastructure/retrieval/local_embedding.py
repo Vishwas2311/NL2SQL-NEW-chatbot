@@ -107,7 +107,7 @@ class LocalEmbedding:
         except ImportError:
             raise Failure(
                 "EMBEDDING_DEPENDENCY",
-                "Install requirements-embeddings-windows.lock using install_office.py.",
+                "Install requirements.txt using install_office.py.",
                 "unavailable",
             ) from None
         self._model: _Model | None = constructor(

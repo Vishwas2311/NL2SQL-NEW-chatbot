@@ -17,7 +17,7 @@ jobs:
           cache: pip
       - name: Install complete Windows office packages
         run: |
-          python -m pip install --only-binary=:all: -r requirements-office-windows.lock
+          python -m pip install --only-binary=:all: -r requirements.txt
           python -m pip install --no-deps -e .
           python -m pip check
       - name: Offline synthetic weights, local vectors and fresh-process reload
@@ -35,7 +35,7 @@ jobs:
       - name: Create pinned environment
         run: |
           python -m venv .venv
-          .venv/Scripts/python -m pip install -r requirements.lock
+          .venv/Scripts/python -m pip install -r requirements.txt
           .venv/Scripts/python -m pip install --no-deps -e .
       - name: All mandatory checks
         run: .venv/Scripts/python scripts/check.py
@@ -63,7 +63,7 @@ jobs:
           cache: pip
       - name: Install pinned application and Redis test dependencies
         run: |
-          python -m pip install -r requirements.lock
+          python -m pip install -r requirements.txt
           python -m pip install --no-deps -e .
       - name: Real Lua, active leases and spawned API workers
         run: python -m pytest -q tests/integration/test_redis.py tests/integration/test_redis_workers.py --no-cov
@@ -79,7 +79,7 @@ jobs:
       - name: Install pinned backend and quality tools
         run: |
           python -m venv .venv
-          .venv/bin/python -m pip install -r requirements.lock
+          .venv/bin/python -m pip install -r requirements.txt
           .venv/bin/python -m pip install --no-deps -e .
       - name: Native embedded graph, persistence, compiler and API contracts
         run: .venv/bin/python scripts/check.py

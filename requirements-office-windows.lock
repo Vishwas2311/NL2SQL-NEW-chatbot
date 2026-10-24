@@ -1,3 +1,0 @@
-# Complete Windows office Python environment, including local CPU embeddings and quality tools.
--r requirements.lock
--r requirements-embeddings-windows.lock

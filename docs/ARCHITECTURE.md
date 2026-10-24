@@ -84,7 +84,7 @@ timeouts/pools. No heartbeat scheduler or background job system is introduced.
 Readiness verifies authentication, scripting and required sorted-set commands in
 an isolated, expiring probe key, rather than relying only on PING. The check-redis
 CLI uses the same adapter without opening Oracle, inference or application databases.
-The redis-py optional dependency is pinned in requirements-redis.lock and the
+The redis-py optional dependency is pinned in requirements.txt and the
 development lock. The office VM Redis service is not installed or deployed here.
 An optional loopback-only Docker Compose service and generated least-privilege
 application/test ACLs support real local synthetic qualification. Generated .env
