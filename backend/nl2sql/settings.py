@@ -207,7 +207,7 @@ def apply_environment_file(path: Path | None) -> tuple[str, ...]:
         if not path.is_file() or path.stat().st_size > 1_000_000:
             raise ValueError("Select an existing bounded environment file")
         for key, value in dotenv_values(path, interpolate=False).items():
-            if value is not None and key not in os.environ:
+            if value not in (None, "") and key not in os.environ:
                 os.environ[key] = value
                 added.append(key)
     return tuple(added)

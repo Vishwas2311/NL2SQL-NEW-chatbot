@@ -33,6 +33,17 @@ def test_selected_env_reaches_oracle_and_trust_without_leaking_process_changes(
     )
 
 
+def test_visible_blank_env_fields_keep_json_values(tmp_path):
+    path = tmp_path / "office.env"
+    path.write_text("NL2SQL_EMBEDDING_DIMENSION=\nNL2SQL_REDIS_URL=\n", encoding="utf-8")
+    settings = tmp_path / "office.json"
+    settings.write_text('{"embedding_dimension":2,"redis_url":"redis://127.0.0.1:6380"}')
+    loaded = load_settings(settings, env_file=path)
+    assert loaded.embedding_dimension == 2
+    assert loaded.redis_url is not None
+    assert loaded.redis_url.get_secret_value() == "redis://127.0.0.1:6380"
+
+
 @pytest.mark.parametrize("failure", ["monitor_exit", "second_start", "interrupt"])
 def test_supervisor_stops_children_on_all_exit_paths(monkeypatch, failure):
     children = []
@@ -117,12 +128,15 @@ def test_laptop_supervisor_rejects_multiworker_tree_before_preparing(
         office.run_office(tmp_path / "office.json", None, None, None, 8000, 900)
 
 
-def test_lexical_office_prepares_and_supervises_without_an_encoder(settings, tmp_path, monkeypatch):
+@pytest.mark.parametrize("embedding_mode", ["disabled", "local"])
+def test_office_prepares_and_supervises_selected_encoder(
+    settings, tmp_path, monkeypatch, embedding_mode
+):
     configuration = settings.model_copy(
         update={
             "query_backend": "oracle",
             "metadata_root": tmp_path,
-            "embedding_mode": "disabled",
+            "embedding_mode": embedding_mode,
         }
     )
     monkeypatch.setattr(office, "load_settings", lambda *_: configuration)

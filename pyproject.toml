@@ -10,6 +10,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = ["fastapi", "uvicorn", "pydantic>=2,<3", "pydantic-settings", "httpx", "surrealdb==2.0.0", "sqlglot", "PyJWT"]
 
 [project.optional-dependencies]
+embeddings = ["sentence-transformers==6.2.0", "torch==2.14.1"]
 oracle = ["oracledb"]
 redis = ["redis==8.1.0"]
 dev = ["pytest", "pytest-cov", "ruff", "pylint", "pyright", "pre-commit"]

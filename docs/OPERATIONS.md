@@ -405,8 +405,9 @@ is not a native SQLite patch. Official advisory: https://sqlite.org/wal.html#wal
    accounts. Set exact model IDs; placeholders/loopback ports are not running integrations.
    `validate-config` reports sanitized configuration/budgets, not successful company connectivity.
 6. Run the normal first-time certification workflow, then office preparation/startup. Graph and
-   optional vector resources are derived automatically. The stock launcher supports disabled or
-   private_http embeddings; local Python providers require custom composition in every process.
+   optional vector resources are derived automatically. The stock launcher supports disabled,
+   private_http and built-in local Sentence Transformers embeddings. See
+   [the one-file Windows installer](OFFICE_INSTALLER.md) for the local model path and CPU lock.
 7. Before enabling users, qualify the actual Oracle/model/identity environment, financial results,
    token counting, memory and 20-user HTTP workload. Increase active chats only from measured evidence.
 

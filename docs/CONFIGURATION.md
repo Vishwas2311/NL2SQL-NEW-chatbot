@@ -2,8 +2,10 @@
 
 ## Office laptop preparation (2026-10-24)
 
-Run `python3.13 setup_env.py --office` to create a fresh native environment and install
-the pinned application, Oracle and Redis clients. Office setup checks the linked SQLite
+Use [the single Windows office installer](OFFICE_INSTALLER.md) for the complete CPU
+embedding runtime, Oracle/Redis clients, quality tools and private connection profile.
+`python3.13 setup_env.py --office` remains a smaller setup without local embedding packages.
+Office setup checks the linked SQLite
 library for the WAL-reset fix; Python 3.13 alone is insufficient. Use SQLite 3.51.3+
 or the documented 3.50.7/3.44.6 maintenance backport. A pip dependency update does not
 replace the standard library SQLite engine. Recreate the environment on macOS;
@@ -14,7 +16,8 @@ approved absolute local paths outside OneDrive/iCloud/network shares. Its loopba
 ports are examples, not running services. Copy `config/office.env.example` separately
 to a private environment file; the synthetic `.env` and two-worker VM profile are different
 profiles. Set the exact model ID. Embeddings and disk snapshots default disabled; if
-enabling hybrid retrieval, configure its approved encoder ID, immutable version and dimension.
+enabling hybrid retrieval, select its approved endpoint/identity or an existing local model
+folder. The built-in local loader derives its dimension and immutable file identity.
 The office profile uses one worker, eight overall chat slots and one inference slot;
 these are provisional limits for the upgraded target machine, not a measured capacity claim.
 the Redis VM profile remains available separately for qualified concurrent deployment.
@@ -284,13 +287,16 @@ Embedding fields: `embedding_mode` (disabled/fake/local/private_http), `embeddin
 `embedding_version`, `embedding_dimension`, `embedding_batch_size`, `embedding_timeout_seconds`,
 `embedding_normalization`, `embedding_cache_entries`, `embedding_endpoint`,
 `approved_embedding_hosts`, `embedding_key`, `embedding_local_path`, `index_storage_path`.
-Fake mode is synthetic-only. An installed local runtime must be explicitly registered with
-`register_local_embedding(model_id, factory)`; the factory receives an existing model path and must
-implement the typed encode port in every process that uses it. The stock `office` supervisor
-supports disabled/private_http embeddings; direct local registration needs an approved custom
-process composition and is not inherited by spawned workers. There is no implicit import,
-server installation or model download.
-Office runtime integration is unqualified until its real adapter is supplied and tested.
+Fake mode is synthetic-only. For a standard saved Sentence Transformers text model, set
+`embedding_mode=local` and `embedding_local_path` to its existing folder. The built-in CPU
+loader infers dimension and binds identity to the saved files; it runs offline with custom
+remote code disabled and safetensors required. An explicit dimension must match the model.
+The same loader is available in preparation, monitoring and serving processes, including
+the `office` supervisor. `register_local_embedding(model_id, factory)` remains available for
+trusted custom composition with an explicit identity/version. Custom registrations are not
+inherited by spawned workers. No weights or model server are downloaded automatically.
+See [the Windows office installer](OFFICE_INSTALLER.md) for the complete optional dependency
+lock, one-file setup, visible connection fields and remaining office qualification.
 
 Use the same model ID/version/dimension/normalization at staging, publication and serving.
 Changed embedding or retrieval configuration requires staging/reviewing a compatible candidate.

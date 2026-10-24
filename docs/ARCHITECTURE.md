@@ -14,6 +14,12 @@ scope retrieval, typed planning, deterministic SQL compilation, independent
 validation, and read-only execution. Browser `user_id`, metadata text, and model
 output cannot grant permissions. Raw SQL fallback remains disabled.
 
+Windows office setup is orchestrated by `install_office.py`; the complete CPU package lock
+and readiness workflow are documented in [OFFICE_INSTALLER.md](OFFICE_INSTALLER.md).
+Built-in offline Sentence Transformers loading now reaches preparation, monitor and API
+processes without custom registration. Only certified authorized metadata is embedded;
+local model files contribute a content digest to the immutable encoder identity.
+
 One runtime bundle pins the approved catalog, graph, retriever, compiler,
 validator, policy, and execution resources for each request. Money uses exact
 minor units or declared Oracle precision/scale and returns Decimal strings.

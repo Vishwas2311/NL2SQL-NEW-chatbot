@@ -150,6 +150,12 @@ recovery still need qualification; see [migration guide](SURREALDB_MIGRATION.md)
 
 ## 7. Retrieval, embeddings and the model
 
+The [Windows office installer](OFFICE_INSTALLER.md) installs the optional CPU embedding
+runtime and configures an existing local model folder. Built-in offline loading works in
+metadata preparation, the monitor and API; custom registration is no longer required for
+standard Sentence Transformers text models. File content determines encoder identity.
+Actual office-model accuracy and memory use still require measurement.
+
 | Component | Implemented behavior | Current qualification |
 |---|---|---|
 | Exact match | Approved metric names and aliases; exact candidates can return before BM25 | Local synthetic tests |
@@ -268,7 +274,7 @@ revoked access. This is graceful version replacement, not proof of production ze
 | Business queries | Fictional SQLite | Approved read-only Oracle credentials and DBA context policies |
 | Graph/search | Embedded SurrealDB and FTS5 | Same logical adapters with approved local storage/native packaging |
 | Sessions/metadata | Separate local SQLite stores | Shared approved local VM paths; network shares/multi-node HA unqualified |
-| LLM/embeddings | Disabled or scripted/fake tests | Approved private endpoints or registered installed runtime, then evaluation |
+| LLM/embeddings | Disabled or scripted/fake tests | Approved private endpoints or built-in offline text encoder, then evaluation |
 | UI/ingress | Frozen reference; loopback API | UI integration, proxy/TLS and corporate identity are office work, not deployed here |
 | Monitor | Disabled | Explicitly approved separate process/service owner; no auto-publication |
 
