@@ -308,25 +308,19 @@ automatically triggered by the prepared workflow.
 
 ## Embedded graph operations
 
-Bootstrap creates each Ladybug graph with a single writer, verifies the closed private
-file, and publishes a read-only projection. Independent API workers read the same
-immutable file; never open that file for writes while readers are active. Scheduling
-continues outside API workers, disabled by default; discovery stages reviewed changes.
+Bootstrap validates and atomically publishes a canonical `.surreal.json` snapshot from
+the approved catalog, then builds a process-local in-memory SurrealDB graph. API workers
+and the external monitor can read the same immutable snapshot without sharing a locked
+native datastore. Scheduling stays outside workers and stages changes for review.
 
-Back up graph files with their approved catalogs and SQLite authority. A failed build
-leaves the active graph intact. Corrupt/mismatched files fail closed: drain workers,
-inspect diagnostics, then restore or rebuild the affected projection in maintenance.
-Do not edit active graph contents. A process killed during build can leave a `.building`
-reservation or temporary file; inspect and remove it only with builders stopped.
-
-Retired files are retained. Removal requires proof that all workers have drained the
-version; one process's local lease count is insufficient. Restrict filesystem access
-to graph/catalog directories and any configured DLL directory. Requalify native loading,
-file format, recovery and representative concurrency before dependency upgrades.
-
-For deployment, place data_dir on an approved local disk outside OneDrive/sync folders
-and network shares; filesystem locking and recovery must be qualified on that volume.
-
+Back up snapshots with approved catalogs and SQLite authority. Failed builds preserve
+existing versions; corrupt/mismatched snapshots fail closed. Drain workers and restore or
+rebuild the affected projection under maintenance. Inspect stale `.building` reservations
+and temporary files only with builders stopped. Retired snapshots are retained until all
+workers drain the version. Restrict filesystem access to graph/catalog directories.
+Requalify native loading, recovery, concurrency and RSS after package upgrades.
+Use approved local storage outside OneDrive/sync folders and network shares.
+See [SurrealDB migration](SURREALDB_MIGRATION.md) for governed publication requirements.
 
 # Automatic office startup
 
@@ -338,7 +332,7 @@ python -m nl2sql office --settings /approved/office.json --env-file /approved/of
 ```
 
 The command discovers the allowlisted Oracle dictionary, stages an immutable candidate,
-builds authorized metadata search/vector resources and prepares the Ladybug graph during
+builds authorized metadata search/vector resources and prepares the SurrealDB graph during
 publication. You do not write graph nodes, embeddings or index-build commands
 by hand. An approved semantic catalog and current principal grants are still inputs:
 dictionary discovery cannot infer business formulas or access certification. If the catalog
@@ -485,7 +479,7 @@ were not provided as a tested integration. On the actual approved runtime:
    to an unapproved endpoint or download another model as part of this procedure.
 5. Repeat a 20-identity HTTP burst plus templates, history and follow-ups. Verify prompt busy
    responses, per-user limits, failure cleanup, current-grant revocation and accurate results.
-6. After model qualification and actual catalog sizing, evaluate Ladybug graph/vector cost.
+6. After model qualification and actual catalog sizing, evaluate SurrealDB graph/vector cost.
    Compare path filtering, ambiguity, lineage and version/retirement behavior, not just one BFS
    timing. Do not replace the mandatory runtime projection without an approved design change.
 
@@ -495,11 +489,10 @@ office guarantees. The preserved UI and EWS contracts are unchanged.
 
 ## CI portability corrections (2026-10-24)
 
-The Windows GitHub runner uses its preinstalled OpenSSL distribution at
-`C:\Program Files\OpenSSL\bin` for the two required native graph DLLs. Git's installation
-directory is not a stable OpenSSL source. The workflow still verifies both required DLLs
-before running the complete checks; it does not download an unreviewed native library.
-This is the hosted-runner configuration, not an assumed path on an office machine.
+The earlier LadybugDB CI configuration required external OpenSSL DLLs. The current
+SurrealDB migration removes those graph-specific environment settings and prerequisite
+steps. Windows, macOS and Redis jobs retain their existing quality/test gates. Successful
+local Windows tests do not claim that hosted CI has already executed this migration.
 
 Pre-commit's project interpreter wrapper keeps the absolute `.venv` executable path
 without dereferencing symlinks. On POSIX, resolving `.venv/bin/python` to the system binary

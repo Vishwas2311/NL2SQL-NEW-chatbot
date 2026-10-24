@@ -53,7 +53,7 @@ def test_dependency_direction(layer, forbidden):
                     "httpx",
                     "redis",
                     "fastapi",
-                    "ladybug",
+                    "surrealdb",
                     "oracledb",
                     "requests",
                     "subprocess",

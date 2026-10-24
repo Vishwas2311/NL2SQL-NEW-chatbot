@@ -175,7 +175,7 @@ def _run(arguments: argparse.Namespace, parser: argparse.ArgumentParser) -> None
                     "api_workers": configuration.api_workers,
                     "active_chat_limit": configuration.max_concurrent_chats,
                     "active_inference_limit": configuration.max_concurrent_inferences,
-                    "retrieval_native_buffer_ceiling_mb": configuration.retrieval_max_native_mb
+                    "estimated_retrieval_memory_budget_mb": configuration.retrieval_max_native_mb
                     * configuration.api_workers,
                 }
             )

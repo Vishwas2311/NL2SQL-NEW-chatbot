@@ -53,6 +53,12 @@ id_ed25519*
 *.sqlite-*
 *.sqlite3
 *.sqlite3-*
+# Rebuildable private graph artifacts, including retained pre-migration files.
+*.surreal.json
+*.surreal.building
+*.surreal.json.*.tmp
+*.lbdb
+*.lbdb.*
 *.gguf
 *.safetensors
 *.onnx

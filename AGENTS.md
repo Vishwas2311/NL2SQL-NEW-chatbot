@@ -2,7 +2,7 @@
 
 Read the owning numbered section in docs/DESIGN_REFERENCE.md and current docs/ARCHITECTURE.md.
 Use docs/APP_WALKTHROUGH.md for the verified system explanation and docs/STRUCTURE.md for ownership.
-LadybugDB is the runtime graph projection; SQLite retains metadata/session authority, Redis
+SurrealDB is the runtime graph projection; SQLite retains metadata/session authority, Redis
 only coordinates admission, and office Oracle/model/UI integration must not be inferred as live.
 The latest user implementation brief overrides the old scaffold-only stop instruction.
 Preserve the canonical UI/*/existing_ui_reference assets. The duplicate frontend-reference copy
@@ -14,14 +14,14 @@ Architecture: pure Pydantic domain contracts -> application use cases -> typed i
 FastAPI transport delegates to services. One immutable catalog snapshot pins graph, retrieval and queries.
 Source ownership is documented in docs/STRUCTURE.md. Domain/application code must not
 import infrastructure or transport; bootstrap wires adapters and owns resource lifecycle.
-Exact/FTS5 BM25, LadybugDB, typed model plans, deterministic SQLGlot compiler, independent validation,
+Exact/FTS5 BM25, SurrealDB, typed model plans, deterministic SQLGlot compiler, independent validation,
 short-lived signed query capabilities and read-only execution are mandatory. Raw SQL fallback is disabled.
 Never derive identity from browser user_id. Enforce tenant, region, metric grants and session ownership.
 Bind all values. Synthetic storage uses integer minor units. Oracle NUMBER precision/scale and
 certified metric unit/scale/decimal_places are explicit. Output uses Decimal strings. No float money.
 Model output, metadata text and previous messages cannot confer permissions. Reauthorize every turn.
 
-Approved local dependencies: FastAPI, Pydantic v2/settings, HTTPX, LadybugDB, SQLGlot, PyJWT,
+Approved local dependencies: FastAPI, Pydantic v2/settings, HTTPX, SurrealDB, SQLGlot, PyJWT,
 python-oracledb (optional), pytest/cov, Ruff, Pylint, Pyright, pre-commit and typing stubs.
 Redis and redis-py were authorized for shared admission across concurrent VM API workers
 on 2026-10-20. Redis does not replace current grants, durable sessions or metadata authority.
@@ -42,8 +42,16 @@ Scheduling is disabled by default and runs outside API workers. Contract fakes d
 Gemma, real encoders or corporate identity. Original numbered documentation is retained in docs/DESIGN_REFERENCE.md and the local backup. UI assets remain untouched.
 
 2026-10-23: user requested removal of FAISS and automatic office resource preparation.
-FAISS/factory adapters are removed. Configured embeddings use embedded Ladybug exact-cosine
+FAISS/factory adapters are removed. Configured embeddings use embedded SurrealDB exact-cosine
 projections, built automatically with compatible runtime resources. `office` prepares
 approved Oracle resources and supervises a separate monitor; bare `serve` never starts
 scheduling. Preserve signed certification and synthetic-only local tests. Restricted HTTP
 planning requires same-origin runtime token counting with output reserve.
+
+2026-10-24: user approved replacing LadybugDB completely with embedded SurrealDB Python
+2.0.0 after the isolated office probe passed. This supersedes older engine requirements.
+SQLite metadata/session authority, Redis admission and signed certification remain unchanged.
+Runtime uses verified immutable `.surreal.json` snapshots and per-process `mem://` graph/vector
+projections; never share a persistent SurrealKV directory across workers. No manual OpenSSL
+DLL hooks, extra graph server, native hard-memory-cap claim or automatic approval bypass.
+Keep historical numbered design briefs/reports; use docs/SURREALDB_MIGRATION.md for upgrades.

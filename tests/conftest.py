@@ -33,21 +33,8 @@ def resources(settings: Settings):
 def synthetic_environment(monkeypatch: pytest.MonkeyPatch):
     """Tests never inherit office credentials/providers; Redis tests require their own URL."""
     for name in tuple(os.environ):
-        if (
-            name.startswith("NL2SQL_")
-            and name not in {"NL2SQL_TEST_REDIS_URL", "NL2SQL_TEST_GRAPH_NATIVE_DIR"}
-        ) or name in {
+        if (name.startswith("NL2SQL_") and name != "NL2SQL_TEST_REDIS_URL") or name in {
             "EWS_NL2SQL_SETTINGS_FILE",
             "EWS_NL2SQL_ENV_FILE",
         }:
             monkeypatch.delenv(name)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def graph_native_test_runtime():
-    """Explicit test-only DLL provisioning; never inherit production graph settings."""
-    directory = os.environ.get("NL2SQL_TEST_GRAPH_NATIVE_DIR")
-    handle = os.add_dll_directory(directory) if os.name == "nt" and directory else None
-    yield
-    if handle is not None:
-        handle.close()

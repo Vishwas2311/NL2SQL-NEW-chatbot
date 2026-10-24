@@ -13,7 +13,7 @@ from nl2sql.application.sessions import SessionService
 from nl2sql.domain.fingerprints import catalog_hash
 from nl2sql.infrastructure.auth import Authenticator
 from nl2sql.infrastructure.databases.sqlite import SQLiteDatabase
-from nl2sql.infrastructure.graph import LadybugGraph
+from nl2sql.infrastructure.graph import SurrealGraph
 from nl2sql.infrastructure.inference.model import build_model
 from nl2sql.infrastructure.metadata.catalog_store import CatalogStore
 from nl2sql.infrastructure.rate_limit import build_inference_admission
@@ -33,7 +33,7 @@ class Resources:
     retriever: Retriever
     model: ModelProvider
     service: ChatService
-    auxiliary: tuple[LadybugGraph | ManagedEncoder | RateLimiter, ...] = ()
+    auxiliary: tuple[SurrealGraph | ManagedEncoder | RateLimiter, ...] = ()
 
     @property
     def conversations(self) -> SessionService:
@@ -88,11 +88,9 @@ def build_resources(
     ) as conn:
         catalog = store.load(conn)
     with ExitStack() as cleanup:
-        graph = LadybugGraph.build(
-            settings.data_dir / "graphs" / (catalog_hash(catalog) + ".lbdb"),
+        graph = SurrealGraph.build(
+            settings.data_dir / "graphs" / (catalog_hash(catalog) + ".surreal.json"),
             catalog,
-            settings.graph_buffer_mb,
-            settings.graph_native_dir,
         )
         cleanup.callback(graph.close)
         validator = SQLValidator(catalog, secrets.token_bytes(32), traversal=graph)
@@ -106,7 +104,6 @@ def build_resources(
             settings.principals,
             encoder or configured_encoder,
             options=settings.retrieval_options,
-            native_dir=settings.graph_native_dir,
         )
         cleanup.callback(retriever.close)
         sessions = SessionStore(

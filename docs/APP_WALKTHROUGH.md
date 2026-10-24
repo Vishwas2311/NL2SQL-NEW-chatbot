@@ -1,7 +1,7 @@
 # V4.3 NL-to-SQL: verified system walkthrough
 
 Reviewed against the local source on **24 October 2026**, including the unpublished
-LadybugDB migration. This describes the implementation, not a deployed office system.
+SurrealDB migration. This describes the implementation, not a deployed office system.
 The user-supplied architecture remains broadly correct; the corrections below matter.
 The original numbered design is retained in [DESIGN_REFERENCE.md](DESIGN_REFERENCE.md).
 
@@ -12,8 +12,8 @@ SQL, independently validates the SQL and permits bounded read-only execution.
 
 | Supplied description | Verified current implementation |
 |---|---|
-| NetworkX join graph | Embedded LadybugDB provides runtime join traversal. Pure Python structural graphs remain for deterministic catalog/drift checks. NetworkX is removed from application dependencies. |
-| One graph contains all business knowledge | The signed Pydantic catalog remains authoritative. LadybugDB stores a rebuildable projection of certified join topology and lineage; it cannot grant permissions or define a metric. |
+| NetworkX join graph | Embedded SurrealDB provides runtime join traversal. Pure Python structural graphs remain for deterministic catalog/drift checks. NetworkX is removed from application dependencies. |
+| One graph contains all business knowledge | The signed Pydantic catalog remains authoritative. SurrealDB stores a rebuildable projection of certified join topology and lineage; it cannot grant permissions or define a metric. |
 | Existing UI sends questions and displays results | The API supports the EWS JSON contract, but the canonical UI remains a frozen reference. It is not served or connected by this backend. |
 | Oracle is the running business database | SQLite holds fictional query data locally. Oracle discovery/query adapters exist but live office Oracle is not qualified. The office template selects Oracle, without connecting it here. |
 | Generic rate limiting | Memory admission supports single-worker development. Redis implements shared request quotas and active-chat leases for configured concurrent workers. |
@@ -38,7 +38,7 @@ flowchart TD
     Context --> Model["Configured model proposes typed JSON; disabled by default"]
     Model --> Plan
     Plan --> Validate["PlanValidator: grants, time, grain and joins"]
-    Validate --- Graph["LadybugDB topology through GraphTraversal"]
+    Validate --- Graph["SurrealDB topology through GraphTraversal"]
     Validate --> Entity["Authorized exact entity lookup; revalidate plan"]
     Entity --> Compile["Deterministic SQLGlot compiler + binds"]
     Compile --> SQL["Independent SQLValidator + signed capability"]
@@ -51,7 +51,7 @@ flowchart TD
 
 These are logical components inside a modular Python application, not separate
 microservices. Bootstrap owns their construction and cleanup. Redis, office Oracle
-and configured model endpoints are external services; LadybugDB and FTS5 are embedded.
+and configured model endpoints are external services; SurrealDB and FTS5 are embedded.
 The simple standalone demo pins its loaded catalog/resources; the governed runtime
 adds publication-aware version replacement and current-grant/drift guards.
 
@@ -64,11 +64,11 @@ adds publication-aware version replacement and current-grant/drift guards.
 | SQLite metadata repository | Candidates, versioned catalog/grants, signed review evidence, lifecycle, active publication pointer, schedule and audit state | Durable control-plane authority. Protected local storage and trust configuration remain required. |
 | SQLite sessions DB | Owner-bound conversations, messages and last validated plans | Durable history. Current authorization is checked; old text cannot confer access. |
 | SQLite FTS5 | In-memory, grant-partitioned metric and rich schema text indexes | Rebuildable lexical retrieval evidence, not business data or authorization. |
-| LadybugDB | Immutable on-disk certified join and lineage projections plus catalog identity | Rebuildable topology, not the authority for business definitions or access. |
+| SurrealDB | Process-local memory graph rebuilt from a verified immutable local snapshot | Rebuildable topology, not the authority for business definitions or access. |
 | Redis, when selected | Expiring request counters and global/per-principal active-chat leases | Admission only. No query-result cache, durable sessions, certified catalog or permission authority. |
-| Optional vector snapshots/index | Authorized metadata vectors with versioned encoder identity | Not customer rows. Actual encoder accuracy and office capacity remain open; native Ladybug projections have local tests. |
+| Optional vector snapshots/index | Authorized metadata vectors with versioned encoder identity | Not customer rows. Actual encoder accuracy and office capacity remain open; native SurrealDB projections have local tests. |
 
-LadybugDB therefore replaces the runtime graph engine, not Oracle, Redis or SQLite.
+SurrealDB therefore replaces the runtime graph engine, not Oracle, Redis or SQLite.
 No Neo4j/Milvus service or graph-specific API key is required by this implementation.
 
 ## 4. Workflow A: first approved metadata setup
@@ -117,33 +117,36 @@ Adding a table/column that fits supported semantics may need metadata changes an
 without new Python. A new operation such as an unsupported temporal join still needs a
 typed contract, compiler/validator support and independent regression evidence.
 
-## 6. LadybugDB: what the migration actually does
+## 6. SurrealDB: what the migration actually does
 
 `application/graph.py` defines the `GraphTraversal` boundary and a pure `DirectedGraph`
-for structural work. `infrastructure/graph.py` implements the native LadybugDB adapter.
+for structural work. `infrastructure/graph.py` implements the native SurrealDB adapter.
 Domain/application modules never import the native driver.
 
-At runtime bootstrap builds/opens `data_dir/graphs/<catalog-digest>.lbdb`. A single builder
-uses an exclusive reservation and a unique temporary file, populates it transactionally,
-closes/verifies it, renames it and opens it read-only. Startup verifies the catalog digest,
-certified join topology and lineage topology. Existing version files are not overwritten.
+At runtime bootstrap builds/opens `data_dir/graphs/<catalog-digest>.surreal.json`.
+A single builder reserves the path, writes/fsyncs a canonical snapshot, verifies it and
+renames it atomically. Each worker validates the entire snapshot against its approved
+catalog, then populates its own embedded `mem://` database and checks joins/lineage.
+This avoids SurrealKV's one-process-per-directory lock while preserving multiple workers
+and the separate monitor. Existing version files are never overwritten.
 
-The stored graph has node IDs, a manifest and typed join/lineage links. Full business
+The snapshot has node IDs, a catalog manifest and join/lineage links. Full business
 definitions, key pairs, cardinality, temporal rules and reviewer evidence remain in the
 catalog and application policy checks; they are not moved into a new graph authority.
 
 `JoinGraph.resolve` filters the view's certified edges, asks the traversal adapter for
 allowed paths, tests for alternatives and rejects ambiguity, fanout and incompatible
-historical joins. The current path budget is at most six edges. LadybugDB uses bound
-Cypher parameters and frontier breadth-first traversal rather than enumerating all paths.
+historical joins. The current path budget is at most six edges. SurrealDB uses bound
+SurrealQL parameters and frontier breadth-first traversal rather than enumerating all paths.
 
 Pure Python structural graphs still support catalog/cycle validation and drift dependency
-calculations. The Ladybug adapter can query persisted lineage; this does not mean every
+calculations. The SurrealDB adapter can query persisted lineage; this does not mean every
 drift calculation is delegated to the native database.
 
-Default graph buffer setting is 64 MiB **per handle**, with one native query thread;
-this is not a total process memory cap. Files are retained after handles drain. Windows
-native DLL packaging, actual VM load and recovery still need office qualification.
+Old graph buffer/DLL configuration has been removed. Per-worker memory stores have
+no hard allocator cap; retained bundles and vector partitions multiply memory costs.
+Local snapshots are retained after handles drain. Actual office RSS, packaging and
+recovery still need qualification; see [migration guide](SURREALDB_MIGRATION.md).
 
 ## 7. Retrieval, embeddings and the model
 
@@ -153,7 +156,7 @@ native DLL packaging, actual VM load and recovery still need office qualificatio
 | FTS5/BM25 | Authorized metric ranking with expansion from the typed column/table/view index | Local synthetic tests |
 | Context builder | Candidate-scoped approved metrics/views/dimensions/relationships plus bounded rich records and the QueryPlan schema | Local tests; descriptions remain untrusted data |
 | Embeddings | Disabled, synthetic fake, explicitly registered installed local adapter, or approved private HTTP adapter | Real encoder not qualified |
-| Vectors | Automatically generated embedded Ladybug metric-vector projections, exact cosine and reciprocal-rank fusion | Real native synthetic tests; actual encoder accuracy/hardware capacity remain unqualified |
+| Vectors | Automatically generated embedded SurrealDB metric-vector projections, exact cosine and reciprocal-rank fusion | Real native synthetic tests; actual encoder accuracy/hardware capacity remain unqualified |
 | Model provider | Disabled, scripted, approved private HTTP, or explicitly authorized synthetic-only hosted HTTP | Real Gemma/private inference not qualified |
 
 These layers answer different questions: retrieval finds relevant approved concepts;
@@ -263,7 +266,7 @@ revoked access. This is graceful version replacement, not proof of production ze
 |---|---|---|
 | API workers | One; memory admission | Laptop profile selects eight overall chats/one inference; concurrent VM profile selects Redis/two workers; capacity remains unqualified |
 | Business queries | Fictional SQLite | Approved read-only Oracle credentials and DBA context policies |
-| Graph/search | Embedded LadybugDB and FTS5 | Same logical adapters with approved local storage/native packaging |
+| Graph/search | Embedded SurrealDB and FTS5 | Same logical adapters with approved local storage/native packaging |
 | Sessions/metadata | Separate local SQLite stores | Shared approved local VM paths; network shares/multi-node HA unqualified |
 | LLM/embeddings | Disabled or scripted/fake tests | Approved private endpoints or registered installed runtime, then evaluation |
 | UI/ingress | Frozen reference; loopback API | UI integration, proxy/TLS and corporate identity are office work, not deployed here |
@@ -308,7 +311,7 @@ flat-module forwarding layers to preserve obsolete filenames from the attachment
 | Capability | Status supported by current evidence |
 |---|---|
 | API/contracts, scope-aware plans, deterministic SQL and independent signed execution | Implemented; local synthetic security/compiler/API tests |
-| Embedded LadybugDB, native lifecycle and immutable projections | Implemented and exercised locally on Windows; office packaging/load/recovery unqualified |
+| Embedded SurrealDB, native lifecycle and immutable projections | Implemented and exercised locally on Windows; office packaging/load/recovery unqualified |
 | Metadata discovery/reconciliation/signatures/publication/pinning/drift/rollback | Implemented locally; no corporate schema or business catalog certified |
 | Redis quotas and active leases | Implemented; prior explicit real local Redis suites exist; VM Redis connectivity/capacity still requires qualification |
 | Durable sessions and response-time access checks | Implemented locally; enterprise retention/backups/IAM remain office responsibilities |
@@ -342,7 +345,7 @@ No checks were weakened and no application code was changed for this review.
    Enable the separate monitor only after approval. Plan UI/ingress integration separately.
 
 These are next integration steps, not actions performed or authorized by this explanation.
-New components are justified by measured requirements; LadybugDB does not require replacing
+New components are justified by measured requirements; SurrealDB does not require replacing
 working semantic, storage, authentication or SQL safety boundaries.
 
 ## 15. Maintained reference for future work
@@ -357,7 +360,7 @@ are historical evidence; inspect current code before treating them as implementa
 
 `office` now prepares derived metadata and supervises separate API/monitor children. Use
 OPERATIONS.md for the command and signed first-publication flow. FAISS/factory adapters
-are removed; configured embeddings populate embedded Ladybug vector projections. You do
+are removed; configured embeddings populate embedded SurrealDB vector projections. You do
 not build graph/vector projections by hand. Typed schema search grounds live questions.
 Restricted inference preflights the entire chat body with the selected runtime tokenizer
 and output reserve. The six-edge execution ceiling now matches planning. Explicit private
@@ -374,7 +377,7 @@ Default structured inference uses PlanningDecision containing a QueryPlan or typ
 Direct QueryPlan adapter replies remain accepted for compatibility. Clarification never executes SQL.
 
 The office example now starts without embeddings or persistent vector snapshots. Enabling an
-approved private encoder still generates Ladybug vectors automatically during governed preparation.
+approved private encoder still generates SurrealDB vectors automatically during governed preparation.
 All authorized metric/schema text is preflighted, and native vector buffers have an explicit
 per-retriever ceiling. Embedding checkpoints are metadata-only preparation work, not query writes.
 

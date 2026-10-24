@@ -4,7 +4,6 @@ import json
 import secrets
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from nl2sql.application.catalog import JoinGraph, validate_catalog
 from nl2sql.application.metadata.drift import policy_digest
@@ -29,7 +28,6 @@ class BundleBuilder:
     encoder_version: str | None = None
     builds: int = 0
     retrieval_options: RetrievalOptions = field(default_factory=RetrievalOptions)
-    native_dir: Path | None = None
 
     def search_fingerprint(self, catalog: Catalog, principals: tuple[Principal, ...]) -> str:
         """Search tuning and encoder compatibility are versioned with the certified corpus."""
@@ -40,7 +38,7 @@ class BundleBuilder:
                     "grants": grant_digest(principals),
                     "encoder": self.encoder_version,
                     "options": self.retrieval_options.model_dump(),
-                    "vector_backend": "ladybug-exact-cosine",
+                    "vector_backend": "surreal-exact-cosine",
                 },
                 sort_keys=True,
             )
@@ -156,7 +154,6 @@ class BundleBuilder:
             principals,
             self.encoder,
             self.retrieval_options,
-            self.native_dir,
         )
         try:
             vector = (

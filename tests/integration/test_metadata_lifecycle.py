@@ -158,6 +158,48 @@ def test_first_bootstrap_approval_and_actual_query(kit):
     assert answer.provenance.bundle_version == staged.candidate_id
 
 
+def test_runtime_rejects_obsolete_search_backend_before_allocating(kit, monkeypatch):
+    staged = kit.workflow.stage(kit.catalog, kit.settings.principals)
+    spec = kit.repository.get(staged.candidate_id).spec
+    assert spec.artifacts.vector_digest is None
+    obsolete = spec.model_copy(
+        update={"artifacts": spec.artifacts.model_copy(update={"search_digest": "0" * 64})}
+    )
+
+    def unexpected(*_args):
+        pytest.fail("Incompatible signed search manifest must fail before native allocation")
+
+    monkeypatch.setattr("nl2sql.bootstrap.runtime.SurrealGraph.build", unexpected)
+    with pytest.raises(Failure) as rejected:
+        kit.factory.build(obsolete)
+    assert rejected.value.code == "METADATA_INTEGRITY"
+    assert kit.repository.control().active is None
+
+
+def test_backend_migration_requires_fresh_signed_publication(kit, monkeypatch):
+    fingerprint = BundleBuilder.search_fingerprint
+    monkeypatch.setattr(
+        BundleBuilder,
+        "search_fingerprint",
+        lambda self, catalog, principals: "0" * 64,
+    )
+    previous = kit.publish()
+    previous_record = kit.repository.get(previous)
+    monkeypatch.setattr(BundleBuilder, "search_fingerprint", fingerprint)
+    with pytest.raises(Failure) as incompatible:
+        kit.start()
+    assert incompatible.value.code == "METADATA_INTEGRITY"
+    current = kit.workflow.stage()
+    assert current.candidate_id != previous and current.state == "pending_approval"
+    assert kit.repository.control().active == previous
+    assert kit.repository.get(previous) == previous_record
+    with pytest.raises(Failure):
+        kit.workflow.approve(current.candidate_id, kit.approvals(previous), kit.admin)
+    kit.workflow.approve(current.candidate_id, kit.approvals(current.candidate_id), kit.admin)
+    kit.workflow.publish(current.candidate_id, kit.admin)
+    assert kit.query(kit.start()).status == "completed"
+
+
 @pytest.mark.parametrize(
     "change", ["type", "precision", "nullable", "removed_column", "composite_key"]
 )

@@ -64,7 +64,7 @@ python -m nl2sql office --settings /approved/office.json --env-file /approved/of
 ```
 
 See OPERATIONS.md for first-time certification. You do not build graph/vector indexes by
-hand. FAISS is removed; configured metadata vectors use embedded Ladybug. The launcher
+hand. FAISS is removed; configured metadata vectors use embedded SurrealDB. The launcher
 never invents business definitions/access approval and downloads no model weights.
 
 
