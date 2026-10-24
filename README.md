@@ -55,7 +55,10 @@ with `python scripts/check.py --redis-env .local/redis/test.env`.
 See [Operations](docs/OPERATIONS.md#redis-verification) for synthetic startup,
 shared rate/active-chat limits, failure recovery and session-retention maintenance.
 
-For office transfer, `python3.13 setup_env.py --office` includes pinned Oracle/Redis clients.
+For a complete Windows office environment, use [install_office.py](docs/OFFICE_INSTALLER.md).
+It installs the pinned core, Oracle/Redis clients, local CPU embedding runtime and quality
+tools, creates visible private connection fields and checks readiness before startup.
+`python3.13 setup_env.py --office` remains the smaller Oracle/Redis client-only option.
 For Windows, first use the [verified runtime candidate and diagnostic](docs/WINDOWS_RUNTIME.md);
 stock Python's version label does not guarantee a patched SQLite library. Office setup now
 checks the selected interpreter before creating an environment or installing packages.

@@ -39,11 +39,10 @@ def run_office(
             "use the approved VM supervisor for multiple workers.",
             "invalid",
         )
-    if settings.embedding_mode not in {"disabled", "private_http"}:
+    if settings.embedding_mode not in {"disabled", "private_http", "local"}:
         raise Failure(
             "OFFICE_CONFIGURATION",
-            "Stock office startup supports disabled or private_http embeddings. "
-            "Direct local providers require an approved custom process composition.",
+            "Office startup supports disabled, private_http or local embeddings.",
             "invalid",
         )
     outcome = run_metadata(

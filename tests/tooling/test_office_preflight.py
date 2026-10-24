@@ -1,5 +1,7 @@
 """Office checks inspect native versions and paths, without opening services."""
 
+import os
+
 import pytest
 from nl2sql.bootstrap.office_checks import office_preflight, wal_patched
 from nl2sql.domain.models import Failure
@@ -99,6 +101,32 @@ def test_patched_sqlite_without_fts5_is_rejected(monkeypatch):
     with pytest.raises(Failure) as error:
         require_sqlite_runtime()
     assert error.value.code == "SQLITE_FTS5_REQUIRED"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Native Windows network path check")
+def test_office_storage_rejects_unc_paths(settings, monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.setattr("nl2sql.bootstrap.office_checks.require_sqlite_runtime", lambda: None)
+    original_resolve = Path.resolve
+
+    def local_only(path, *args, **kwargs):
+        assert not path.anchor.startswith("\\\\"), (
+            "Reject network paths before Windows resolves them"
+        )
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", local_only)
+    configuration = settings.model_copy(
+        update={
+            "query_backend": "oracle",
+            "data_classification": "restricted",
+            "data_dir": Path(r"\\server\share\restricted-data"),
+        }
+    )
+    with pytest.raises(Failure) as error:
+        office_preflight(configuration)
+    assert error.value.code == "OFFICE_STORAGE"
 
 
 def test_dependency_free_report_distinguishes_patch_and_fts5(monkeypatch):

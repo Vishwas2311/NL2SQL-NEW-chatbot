@@ -55,3 +55,10 @@ Runtime uses verified immutable `.surreal.json` snapshots and per-process `mem:/
 projections; never share a persistent SurrealKV directory across workers. No manual OpenSSL
 DLL hooks, extra graph server, native hard-memory-cap claim or automatic approval bypass.
 Keep historical numbered design briefs/reports; use docs/SURREALDB_MIGRATION.md for upgrades.
+
+2026-10-24: user authorized complete Windows office setup and the optional CPU local
+Sentence Transformers runtime. `install_office.py` uses the complete Windows lock, preserves
+private profiles/data and verifies runtime before environment changes. Built-in standard
+text encoders load existing safetensors folders offline without custom code or downloads;
+all preparation/monitor/API processes use a file-content encoder identity. No automatic
+Oracle/Redis server installation, fabricated approvals or company connections in local tests.

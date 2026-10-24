@@ -56,6 +56,7 @@ tests/
 config/                   # Office/VM examples and optional local Redis Compose configuration
 metadata/synthetic/       # Fictional catalogs only
 scripts/                  # Quality/evaluation entry points and isolated Redis setup
+install_office.py          # Windows runtime/package/profile/readiness orchestration
 docs/                     # Current guides plus retained original numbered design
 reports/                  # Sanitized measurements and dated reviews
 UI/.../existing_ui_reference/  # Sole unchanged UI reference and original hashes

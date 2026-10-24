@@ -20,6 +20,7 @@ from nl2sql.infrastructure.retrieval.embedding_cache import (
     restricted_path,
     save_vectors,
 )
+from nl2sql.infrastructure.retrieval.local_embedding import LocalEmbedding
 from nl2sql.infrastructure.retrieval.vector_index import normalized
 from nl2sql.settings import Settings
 from nl2sql.telemetry import REQUEST_DEADLINE, measured
@@ -230,7 +231,7 @@ class ManagedEncoder:
 
     def close(self) -> None:
         """Close owned HTTP resources; the registrar owns an installed local runtime."""
-        if isinstance(self.provider, PrivateEmbedding):
+        if isinstance(self.provider, (PrivateEmbedding, LocalEmbedding)):
             self.provider.close()
 
 
@@ -248,7 +249,9 @@ def build_embedding(settings: Settings) -> ManagedEncoder | None:
     """Same configured identity is used by staging, publication and query-time encoding."""
     if settings.embedding_mode == "disabled":
         return None
-    if settings.embedding_model == "disabled" or settings.embedding_version == "disabled":
+    if settings.embedding_mode != "local" and (
+        settings.embedding_model == "disabled" or settings.embedding_version == "disabled"
+    ):
         raise ValueError("An embedding model ID and version are required")
     if settings.embedding_mode == "private_http":
         provider: EmbeddingProvider = PrivateEmbedding(settings)
@@ -258,9 +261,33 @@ def build_embedding(settings: Settings) -> ManagedEncoder | None:
         provider = FakeEmbedding(settings.embedding_dimension)
     else:
         path = settings.embedding_local_path
-        if path is None or not path.exists() or settings.embedding_model not in _LOCAL_PROVIDERS:
-            raise ValueError(
-                "An existing local model and installed adapter registration are required"
+        if path is None or not path.is_dir():
+            raise ValueError("An existing local embedding model directory is required")
+        if settings.embedding_model in _LOCAL_PROVIDERS:
+            if settings.embedding_version == "disabled":
+                raise ValueError("An approved embedding model version is required")
+            provider = _LOCAL_PROVIDERS[settings.embedding_model](path)
+        else:
+            local = LocalEmbedding(path, settings.embedding_batch_size)
+            if (
+                "embedding_dimension" in settings.model_fields_set
+                and settings.embedding_dimension != local.dimension
+            ):
+                local.close()
+                raise ValueError("Configured embedding dimension differs from the local model")
+            settings = settings.model_copy(
+                update={
+                    "embedding_model": path.name
+                    if settings.embedding_model == "disabled"
+                    else settings.embedding_model,
+                    "embedding_version": settings.embedding_version + ":" + local.version,
+                    "embedding_dimension": local.dimension,
+                }
             )
-        provider = _LOCAL_PROVIDERS[settings.embedding_model](path)
-    return ManagedEncoder(settings, provider)
+            provider = local
+    try:
+        return ManagedEncoder(settings, provider)
+    except BaseException:
+        if isinstance(provider, (PrivateEmbedding, LocalEmbedding)):
+            provider.close()
+        raise

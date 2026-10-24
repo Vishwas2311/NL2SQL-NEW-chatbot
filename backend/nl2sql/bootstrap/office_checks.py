@@ -22,7 +22,12 @@ def office_preflight(settings: Settings) -> None:
     ):
         if path is None:
             continue
-        if not path.is_absolute() or path.resolve().is_relative_to(project):
+        if (
+            not path.is_absolute()
+            or path.anchor.startswith("\\\\")
+            or path.resolve().anchor.startswith("\\\\")
+            or path.resolve().is_relative_to(project)
+        ):
             raise Failure(
                 "OFFICE_STORAGE",
                 "Choose absolute protected paths outside the source tree.",
