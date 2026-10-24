@@ -37,6 +37,7 @@ backend/nl2sql/
     inference/            # Disabled, scripted and HTTP model providers
   api/                    # FastAPI transport, public schemas and middleware
   bootstrap/              # Composition roots, request leases and spawned-worker factory
+    sqlite_runtime.py     # Standard-library-only Python/SQLite/FTS5/TLS diagnostic
   cli/                    # Serve, configuration and metadata administration commands
   evaluation/             # Synthetic data and reproducible evaluation harnesses
   settings.py             # Validated application/environment configuration

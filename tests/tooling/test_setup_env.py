@@ -46,40 +46,34 @@ def test_setup_from_another_directory_preserves_settings(
     setup_env.main(office=office)
     assert created == [root / ".venv"]
     assert (root / ".env").read_text(encoding="utf-8") == (existing_settings or template)
-    assert (
-        calls
-        == (
-            [
-                [
-                    str(python),
-                    "-m",
-                    "pip",
-                    "install",
-                    *[
-                        item
-                        for name in (
-                            ("requirements-oracle.lock", "requirements-redis.lock")
-                            if office
-                            else ("requirements-core.lock",)
-                        )
-                        for item in ("-r", str(root / name))
-                    ],
-                ],
-                [str(python), "-m", "pip", "install", "--no-deps", "-e", str(root)],
-            ]
-            + (
-                [
-                    [
-                        str(python),
-                        "-c",
-                        "from nl2sql.bootstrap.office_checks import require_sqlite_runtime; require_sqlite_runtime()",
-                    ]
-                ]
-                if office
-                else []
-            )
+    installs = [
+        [
+            str(python),
+            "-m",
+            "pip",
+            "install",
+            *[
+                item
+                for name in (
+                    ("requirements-oracle.lock", "requirements-redis.lock")
+                    if office
+                    else ("requirements-core.lock",)
+                )
+                for item in ("-r", str(root / name))
+            ],
+        ],
+        [str(python), "-m", "pip", "install", "--no-deps", "-e", str(root)],
+    ]
+    diagnostic = str(root / "backend/nl2sql/bootstrap/sqlite_runtime.py")
+    assert calls == (
+        (
+            [[setup_env.sys.executable, "-I", diagnostic], [str(python), "-I", diagnostic]]
+            if office
+            else []
         )
-        * 2
+        + installs
+        + ([[str(python), "-I", diagnostic]] if office else [])
+        + installs
     )
 
 
@@ -109,3 +103,36 @@ def test_setup_rejects_unsupported_python(tmp_path: Path, monkeypatch: pytest.Mo
     with pytest.raises(SystemExit, match="Use Python 3.13"):
         setup_env.main()
     assert not (tmp_path / ".venv").exists()
+
+
+@pytest.mark.parametrize("existing_venv", [False, True])
+def test_office_runtime_failure_precedes_every_mutation(tmp_path, monkeypatch, existing_venv):
+    monkeypatch.setattr(setup_env, "__file__", str(tmp_path / "setup_env.py"))
+    monkeypatch.setattr(setup_env.sys, "version_info", (3, 13, 17))
+    python = tmp_path / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    if existing_venv:
+        python.parent.mkdir(parents=True)
+        python.write_bytes(b"existing runtime")
+    settings = tmp_path / ".env"
+    settings.write_bytes(b"preserve settings")
+    data = tmp_path / "data.db"
+    data.write_bytes(b"preserve data")
+    calls = []
+
+    def reject(command, *, check):
+        assert check and "pip" not in command and "-e" not in command
+        calls.append(command)
+        raise subprocess.CalledProcessError(1, command)
+
+    def unexpected(*_args, **_kwargs):
+        pytest.fail("Runtime must pass before creating a virtual environment")
+
+    monkeypatch.setattr(setup_env.subprocess, "run", reject)
+    monkeypatch.setattr(setup_env.venv, "EnvBuilder", unexpected)
+    with pytest.raises(subprocess.CalledProcessError):
+        setup_env.main(office=True)
+    assert len(calls) == 1
+    assert calls[0][0] == (str(python) if existing_venv else setup_env.sys.executable)
+    assert settings.read_bytes() == b"preserve settings"
+    assert data.read_bytes() == b"preserve data"
+    assert python.read_bytes() == b"existing runtime" if existing_venv else not python.exists()

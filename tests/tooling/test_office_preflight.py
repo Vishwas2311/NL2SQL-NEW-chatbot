@@ -83,3 +83,48 @@ def test_office_checks_effective_override_root(settings, tmp_path, monkeypatch):
             tmp_path / "settings.json", None, type(tmp_path)("relative"), None, 8000, 900
         )
     assert error.value.code == "OFFICE_STORAGE"
+
+
+def test_patched_sqlite_without_fts5_is_rejected(monkeypatch):
+    import sqlite3
+
+    from nl2sql.bootstrap.office_checks import require_sqlite_runtime
+
+    monkeypatch.setattr(sqlite3, "sqlite_version_info", (3, 51, 3))
+
+    def unavailable(*_args):
+        raise sqlite3.OperationalError("no such module: fts5")
+
+    monkeypatch.setattr(sqlite3, "connect", unavailable)
+    with pytest.raises(Failure) as error:
+        require_sqlite_runtime()
+    assert error.value.code == "SQLITE_FTS5_REQUIRED"
+
+
+def test_dependency_free_report_distinguishes_patch_and_fts5(monkeypatch):
+    from nl2sql.bootstrap import sqlite_runtime
+
+    monkeypatch.setattr(sqlite_runtime.sys, "version_info", (3, 13, 17))
+    monkeypatch.setattr(sqlite_runtime.sqlite3, "sqlite_version_info", (3, 53, 1))
+    assert sqlite_runtime.runtime_report()["compatible"] is True
+    monkeypatch.setattr(sqlite_runtime.sqlite3, "sqlite_version_info", (3, 50, 4))
+    report = sqlite_runtime.runtime_report()
+    assert report["fts5"] is True and report["wal_patched"] is False
+    assert report["compatible"] is False
+
+
+def test_dependency_free_report_rejects_missing_python_tls(monkeypatch):
+    import builtins
+
+    from nl2sql.bootstrap import sqlite_runtime
+
+    original = builtins.__import__
+
+    def missing_ssl(name, *args, **kwargs):
+        if name == "ssl":
+            raise ImportError("synthetic missing TLS library")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", missing_ssl)
+    report = sqlite_runtime.runtime_report()
+    assert report["tls"] is None and report["compatible"] is False

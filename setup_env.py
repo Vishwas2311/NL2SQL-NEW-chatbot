@@ -11,13 +11,21 @@ from pathlib import Path
 def main(office: bool = False) -> None:
     """Prepare this project without replacing an existing environment settings file."""
     if sys.version_info[:2] != (3, 13):
-        raise SystemExit("Use Python 3.13; the verified project baseline is Python 3.13.16.")
+        raise SystemExit("Use Python 3.13; office builds must also pass SQLite/FTS5 checks.")
     root = Path(__file__).resolve().parent
     environment = root / ".venv"
     python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    diagnostic = str(root / "backend/nl2sql/bootstrap/sqlite_runtime.py")
+    if office:
+        print("Checking selected office runtime before changing the environment", flush=True)
+        subprocess.run(
+            [str(python) if python.is_file() else sys.executable, "-I", diagnostic], check=True
+        )
     print("1/3 Preparing .venv", flush=True)
     if not python.is_file():
         venv.EnvBuilder(with_pip=True).create(environment)
+        if office:
+            subprocess.run([str(python), "-I", diagnostic], check=True)
     print("2/3 Installing pinned core dependencies and the project", flush=True)
     requirements = (
         ["requirements-oracle.lock", "requirements-redis.lock"]
@@ -35,15 +43,6 @@ def main(office: bool = False) -> None:
         check=True,
     )
     subprocess.run([str(python), "-m", "pip", "install", "--no-deps", "-e", str(root)], check=True)
-    if office:
-        subprocess.run(
-            [
-                str(python),
-                "-c",
-                "from nl2sql.bootstrap.office_checks import require_sqlite_runtime; require_sqlite_runtime()",
-            ],
-            check=True,
-        )
     print("3/3 Preparing .env", flush=True)
     template = (root / ".env.example").read_text(encoding="utf-8")
     try:

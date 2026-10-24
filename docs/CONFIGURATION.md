@@ -360,6 +360,9 @@ performance evidence before release. No deployment, public publication or remote
 
 ## Embedded graph configuration
 
+For the verified portable Windows Python/SQLite candidate and early setup checks, see
+[Windows runtime qualification](WINDOWS_RUNTIME.md). Company approval remains separate.
+
 SurrealDB Python `2.0.0` includes the embedded engine and requires no graph endpoint,
 API key, separate server or application OpenSSL directory hook. Install pinned requirements
 into a fresh platform-specific virtual environment. No model weights are installed.

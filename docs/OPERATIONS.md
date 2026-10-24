@@ -374,9 +374,14 @@ that deployment supervisor.
 
 ## Office handover and upgrade procedure (2026-10-24)
 
+The [Windows runtime guide](WINDOWS_RUNTIME.md) identifies a locally verified portable
+Python 3.13.17 build linked to SQLite 3.53.1 with FTS5. It is a company-approval candidate,
+not the stock Python build in the earlier screenshots. `setup_env.py --office` now checks
+the selected interpreter before creating an environment or installing dependencies.
+
 Preparation is local only; no transfer/deployment is implied. Use a Python 3.13 build whose
 linked SQLite includes the WAL-reset fix. `setup_env.py --office` checks that native library
-before reporting setup complete. The currently reviewed Windows interpreter links SQLite
+before changing the environment. The original stock development interpreter links SQLite
 3.50.4 and is not a qualified restricted office runtime. Install an approved patched Python
 build on the target machine and recreate the environment; copying .venv or updating pip packages
 is not a native SQLite patch. Official advisory: https://sqlite.org/wal.html#walresetbug.
